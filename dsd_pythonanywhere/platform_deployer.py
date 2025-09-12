@@ -43,13 +43,15 @@ Add a set of requirements:
         plugin_utils.add_packages(requirements)
 """
 
+import os
 from pathlib import Path
-
-
-from . import deploy_messages as platform_msgs
 
 from django_simple_deploy.management.commands.utils import plugin_utils
 from django_simple_deploy.management.commands.utils.plugin_utils import dsd_config
+
+from dsd_pythonanywhere.client import APIClient
+
+from . import deploy_messages as platform_msgs
 
 
 class PlatformDeployer:
@@ -72,6 +74,7 @@ class PlatformDeployer:
         self._prep_automate_all()
 
         # Configure project for deployment to PythonAnywhere
+        self._clone_and_run_setup_script()
 
         self._conclude_automate_all()
         self._show_success_message()
@@ -91,6 +94,20 @@ class PlatformDeployer:
     def _prep_automate_all(self):
         """Take any further actions needed if using automate_all."""
         pass
+
+    def _clone_and_run_setup_script(self):
+        client = APIClient(username=os.getenv("API_USER"))
+        # Proof of concept to run script remotely on Python Anywhere
+        output = client.run_command(
+            "curl -fsSL https://raw.githubusercontent.com/caktus/dsd-pythonanywhere/refs/heads/add-api-client/scripts/setup.sh | bash -s -- https://github.com/caktus/dsd-pythonanywhere.git"
+        )
+        plugin_utils.write_output(output)
+
+    def _add_requirements(self):
+        """Add requirements for deploying to PythonAnywhere."""
+        plugin_utils.write_output("  Adding deploy requirements...")
+        requirements = ("gunicorn", "whitenoise")
+        plugin_utils.add_packages(requirements)
 
     def _conclude_automate_all(self):
         """Finish automating the push to PythonAnywhere.
