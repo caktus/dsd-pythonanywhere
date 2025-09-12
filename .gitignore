@@ -1,9 +1,11 @@
 .DS_Store
 
 *_env/
+.envrc
 
 *.pyc
 __pycache__/
+.pytest_cache/
 
 dist/
 *.egg-info
@@ -16,3 +18,7 @@ build/
 .venv/
 
 notes/
+.vscode/
+
+# Ignore Jupyter notebook checkpoints
+.ipynb_checkpoints/

@@ -1,20 +1,11 @@
 """Integration tests for django-simple-deploy, targeting Fly.io."""
 
-import sys
 from pathlib import Path
-import subprocess
 
-import pytest
-
+from tests.integration_tests.conftest import (dsd_version, pkg_manager,
+                                              reset_test_project, run_dsd,
+                                              tmp_project)
 from tests.integration_tests.utils import it_helper_functions as hf
-from tests.integration_tests.conftest import (
-    tmp_project,
-    run_dsd,
-    reset_test_project,
-    pkg_manager,
-    dsd_version,
-)
-
 
 # --- Fixtures ---
 
@@ -122,7 +113,7 @@ def test_log_dir(tmp_project):
 
     # There should be exactly two log files.
     log_files = sorted(log_path.glob("*"))
-    log_filenames = [lf.name for lf in log_files]
+    _ = [lf.name for lf in log_files]
     # Check for exactly the log files we expect to find.
     # DEV: Currently just testing that a log file exists. Add a regex text for a file
     # like "simple_deploy_2022-07-09174245.log".
@@ -139,9 +130,7 @@ def test_log_dir(tmp_project):
     # DEV: Update these for more platform-specific log messages.
     # Spot check for opening log messages.
     assert "INFO: Logging run of `manage.py deploy`..." in log_file_text
-    assert (
-        "INFO: Configuring project for deployment to PythonAnywhere..." in log_file_text
-    )
+    assert "INFO: Configuring project for deployment to PythonAnywhere..." in log_file_text
 
     assert "INFO: CLI args:" in log_file_text
     assert (
@@ -156,6 +145,12 @@ def test_log_dir(tmp_project):
     # Spot check for success messages.
     assert (
         "INFO: --- Your project is now configured for deployment on PythonAnywhere ---"
+        in log_file_text
+    )
+    assert "INFO: To deploy your project, you will need to:" in log_file_text
+
+    assert (
+        "INFO: - You can find a full record of this configuration in the dsd_logs directory."
         in log_file_text
     )
     assert "INFO: To deploy your project, you will need to:" in log_file_text

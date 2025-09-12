@@ -1,7 +1,7 @@
 """Manages all PythonAnywhere-specific aspects of the deployment process.
 
 Notes:
-- 
+-
 
 Add a new file to the user's project, without using a template:
 
@@ -43,18 +43,13 @@ Add a set of requirements:
         plugin_utils.add_packages(requirements)
 """
 
-import sys, os, re, json
 from pathlib import Path
 
-from django.utils.safestring import mark_safe
-
-import requests
 
 from . import deploy_messages as platform_msgs
 
 from django_simple_deploy.management.commands.utils import plugin_utils
 from django_simple_deploy.management.commands.utils.plugin_utils import dsd_config
-from django_simple_deploy.management.commands.utils.command_errors import DSDCommandError
 
 
 class PlatformDeployer:
@@ -93,11 +88,9 @@ class PlatformDeployer:
         """
         pass
 
-
     def _prep_automate_all(self):
         """Take any further actions needed if using automate_all."""
         pass
-
 
     def _conclude_automate_all(self):
         """Finish automating the push to PythonAnywhere.
