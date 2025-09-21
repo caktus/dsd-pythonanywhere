@@ -62,17 +62,57 @@ class APIClient:
 
                         # Clean up the output part - remove ANSI escape sequences and control chars
                         clean_output = re.sub(
-                            r"\x1b\[\?2004l\r", "", raw_output
-                        )  # Remove terminal mode
+                            r"\x1b\[\?2004[lh]\r?", "", raw_output
+                        )  # Remove terminal mode sequences
+                        # Remove the trailing prompt/terminal setup but preserve the actual output
                         clean_output = re.sub(
-                            r"\x1b\[\?2004h.*$", "", clean_output
-                        )  # Remove trailing terminal setup
+                            r"\x1b\[0;0m\d{2}:\d{2} ~.*$", "", clean_output
+                        )  # Remove trailing prompt
                         clean_output = clean_output.strip("\r\n")
 
                         command_output = clean_output
                     break
 
         return command, command_output
+
+    def _parse_specific_command_output(self, output: str, target_command: str) -> tuple[str, str]:
+        """Extract a specific command and its output from console output.
+
+        Look for the target_command specifically in the console history and return the output
+        from the MOST RECENT execution (last occurrence).
+
+        Returns: (command, command_output) if found, (None, None) if not found
+        """
+        # Split on the prompt pattern that includes the green $ and command
+        parts = PROMPT_REGEX.split(output)
+
+        # Look through all commands to find our target, but keep track of the LAST match
+        last_command = None
+        last_output = None
+
+        for i in range(1, len(parts), 2):  # Commands are in odd-indexed parts
+            if i < len(parts) and parts[i].strip() == target_command:
+                command = parts[i].strip()
+
+                # Get the output that follows this command (next part)
+                if i + 1 < len(parts):
+                    raw_output = parts[i + 1]
+
+                    # Clean up the output part - remove ANSI escape sequences and control chars
+                    clean_output = re.sub(
+                        r"\x1b\[\?2004[lh]\r?", "", raw_output
+                    )  # Remove terminal mode sequences
+                    # Remove the trailing prompt/terminal setup but preserve the actual output
+                    clean_output = re.sub(
+                        r"\x1b\[0;0m\d{2}:\d{2} ~.*$", "", clean_output
+                    )  # Remove trailing prompt
+                    clean_output = clean_output.strip("\r\n")
+
+                    # Keep this as the most recent match (don't return immediately)
+                    last_command = command
+                    last_output = clean_output
+
+        return last_command, last_output
 
     def _wait_for_console_ready(self, console_url: str, browser_console_url: str) -> None:
         """Wait for console to be ready by polling with a test command."""
@@ -110,8 +150,7 @@ class APIClient:
             )
 
             if output_response.ok:
-                output = output_response.json()["output"]
-                resp_cmd, resp_output = self._parse_last_command_output(output)
+                resp_cmd, resp_output = self.get_console_output(console_url, output_response)
 
                 if resp_cmd == test_command and resp_output.strip() == expected_output:
                     logger.debug("Console is ready")
@@ -163,6 +202,61 @@ class APIClient:
         self._wait_for_console_ready(console_url, bash_console.get("console_url", ""))
         return console_url
 
+    def get_console_output(self, console_url: str, output_response=None) -> tuple[str, str]:
+        """Get the latest output from console and parse the last command."""
+        if output_response is None:
+            output = self.session.get(f"{console_url}/get_latest_output/").json()["output"]
+        else:
+            output = output_response.json()["output"]
+        return self._parse_last_command_output(output)
+
+    def _wait_for_command_completion(
+        self, console_url: str, expected_command: str, max_retries: int = 30
+    ) -> tuple[str, str]:
+        """Wait for a command to complete by polling console output until we see a prompt.
+
+        Returns: (command, command_output) when a new prompt appears (indicating command finished)
+        """
+        for attempt in range(max_retries):
+            logger.debug(
+                f"Polling attempt {attempt + 1}: waiting for command '{expected_command}' to complete"
+            )
+
+            try:
+                output_response = self.request(
+                    method="GET", url=f"{console_url}/get_latest_output/", raise_for_status=False
+                )
+
+                if output_response.ok:
+                    output = output_response.json()["output"]
+
+                    # Check if the output ends with a prompt (indicating the command finished and console is ready)
+                    # The prompt pattern should appear at the end, followed by possible whitespace/control chars
+                    # Look for: timestamp ~ $ at the end (allowing for terminal control sequences)
+                    prompt_at_end = re.search(r"\d{2}:\d{2} ~[^$]*\$ [^$]*$", output)
+
+                    if prompt_at_end:
+                        # Instead of parsing the last command, look for our specific command
+                        resp_cmd, resp_output = self._parse_specific_command_output(
+                            output, expected_command
+                        )
+
+                        # Check if we found our specific command
+                        if resp_cmd and resp_cmd == expected_command:
+                            logger.debug(
+                                f"Command completed (found: '{resp_cmd}', expected: '{expected_command}') with prompt ready"
+                            )
+                            return resp_cmd, resp_output
+
+            except Exception as e:
+                logger.debug(f"Error polling console output: {e}")
+
+            time.sleep(1)  # Wait before next poll
+
+        raise RuntimeError(
+            f"Command '{expected_command}' did not complete after {max_retries} attempts"
+        )
+
     def run_command(self, command: str) -> str:
         """Run a command in an active bash console and return the output."""
         console_url = self.get_active_console_url()
@@ -171,8 +265,8 @@ class APIClient:
         response = self.request(
             method="POST", url=f"{console_url}/send_input/", json={"input": f"{command}\n"}
         )
-        output = ""
         if response.ok:
-            output = self.session.get(f"{console_url}/get_latest_output/").json()["output"]
-            resp_cmd, resp_output = self._parse_last_command_output(output)
-        return resp_cmd, resp_output
+            # Wait for the command to complete by polling the output
+            resp_cmd, resp_output = self._wait_for_command_completion(console_url, command)
+            return resp_output
+        return ""

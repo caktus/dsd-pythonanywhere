@@ -75,6 +75,7 @@ class PlatformDeployer:
 
         # Configure project for deployment to PythonAnywhere
         self._clone_and_run_setup_script()
+        self._add_requirements()
 
         self._conclude_automate_all()
         self._show_success_message()
@@ -91,6 +92,27 @@ class PlatformDeployer:
         """
         pass
 
+    def _get_origin_url(self) -> str:
+        """"""
+        origin_url = (
+            plugin_utils.run_quick_command("git config --get remote.origin.url", check=True)
+            .stdout.decode()
+            .strip()
+        )
+
+        # Convert SSH URL to HTTPS URL
+        # git@github.com:owner/repo.git -> https://github.com/owner/repo.git
+        if origin_url.startswith("git@"):
+            # Remove 'git@' and replace ':' after hostname with '/'
+            https_url = origin_url.replace("git@", "https://").replace("github.com:", "github.com/")
+        else:
+            https_url = origin_url
+
+        return https_url
+
+    def _get_deployed_project_name(self):
+        return os.getenv("API_USER")
+
     def _prep_automate_all(self):
         """Take any further actions needed if using automate_all."""
         pass
@@ -98,15 +120,23 @@ class PlatformDeployer:
     def _clone_and_run_setup_script(self):
         client = APIClient(username=os.getenv("API_USER"))
         # Proof of concept to run script remotely on Python Anywhere
-        output = client.run_command(
-            "curl -fsSL https://raw.githubusercontent.com/caktus/dsd-pythonanywhere/refs/heads/add-api-client/scripts/setup.sh | bash -s -- https://github.com/caktus/dsd-pythonanywhere.git"
-        )
-        plugin_utils.write_output(output)
+        cmd = [
+            "curl -fsSL https://bass-liked-specially.ngrok-free.app/scripts/setup.sh | bash -s --"
+        ]
+        origin_url = self._get_origin_url()
+        repo_name = Path(origin_url).stem
+        cmd.append(f"{origin_url} {repo_name}")
+        output = client.run_command(" ".join(cmd))
+        plugin_utils.write_output("Done cloneing and running setup script.")
 
     def _add_requirements(self):
         """Add requirements for deploying to PythonAnywhere."""
         plugin_utils.write_output("  Adding deploy requirements...")
-        requirements = ("gunicorn", "whitenoise")
+        requirements = (
+            "gunicorn",
+            "dj-database-url",
+            "dsd-pythonanywhere @ git+https://github.com/caktus/dsd-pythonanywhere@add-api-client",
+        )
         plugin_utils.add_packages(requirements)
 
     def _conclude_automate_all(self):
