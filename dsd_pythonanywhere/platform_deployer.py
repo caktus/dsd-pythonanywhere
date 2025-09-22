@@ -126,8 +126,10 @@ class PlatformDeployer:
         origin_url = self._get_origin_url()
         repo_name = Path(origin_url).stem
         cmd.append(f"{origin_url} {repo_name}")
-        output = client.run_command(" ".join(cmd))
-        plugin_utils.write_output("Done cloneing and running setup script.")
+        cmd = " ".join(cmd)
+        plugin_utils.write_output(f"  Cloning and running setup script: {cmd}")
+        client.run_command(cmd)
+        plugin_utils.write_output("Done cloning and running setup script.")
 
     def _add_requirements(self):
         """Add requirements for deploying to PythonAnywhere."""

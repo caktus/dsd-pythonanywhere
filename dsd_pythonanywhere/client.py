@@ -22,7 +22,8 @@ def log_message(message: str, level: int = logging.DEBUG, **kwargs) -> None:
         **kwargs: Additional keyword arguments for the logger
     """
     logger.log(level, message, **kwargs)
-    plugin_utils.write_output(message)
+    if plugin_utils.dsd_config.stdout is not None:
+        plugin_utils.write_output(message)
 
 
 @dataclass
@@ -47,38 +48,34 @@ class CommandRun:
         self.raw_output = raw_output
         self.lines = raw_output.splitlines()
 
-    def find_most_recent_prompt_line(self) -> int | None:
+    def find_most_recent_prompt_line(self, expected_command: str = None) -> int | None:
         """Find the most recent prompt line in console output.
 
-        Walks backwards through lines to find the most recent line containing a prompt pattern.
+        Walks backwards through lines to find the most recent line containing a
+        prompt pattern. Optionally filters for prompts containing a specific
+        command.
+
+        Args:
+            expected_command: If provided, only return prompts containing this
+                              command.
 
         Returns: Line index if found, None otherwise
         """
         for i in range(len(self.lines) - 1, -1, -1):
             line = self.lines[i]
-            if self.PROMPT_PATTERN.search(line):
-                return i
-        return None
-
-    def find_most_recent_command_line(self, expected_command: str) -> int | None:
-        """Find the most recent occurrence of a command in console lines.
-
-        Walks backwards through lines to find the most recent prompt containing the expected command.
-
-        Returns: Line index if found, None otherwise
-        """
-        for i in range(len(self.lines) - 1, -1, -1):
-            line = self.lines[i]
-            if expected_command in line and self.PROMPT_PATTERN.search(line):
+            if self.PROMPT_PATTERN.search(line) and (
+                expected_command is None or expected_command in line
+            ):
                 return i
         return None
 
     def extract_command_output(self, expected_command: str) -> str | None:
         """Extract output for a specific command from console lines.
 
-        Find our command, then collect output that appears after it until the next prompt.
+        Find our command, then collect output that appears after it until the
+        next prompt.
         """
-        command_line_index = self.find_most_recent_command_line(expected_command)
+        command_line_index = self.find_most_recent_prompt_line(expected_command=expected_command)
         if command_line_index is None:
             return None
 
@@ -116,9 +113,9 @@ class CommandRun:
 
 
 class Console:
-    """Handles interaction with a PythonAnywhere console.
+    """Handles API interactions with a PythonAnywhere console.
 
-    Since PythonAnywhere doesn't offer ssh access for free accounts, we interact
+    Since PythonAnywhere doesn't offer SSH access for free accounts, we interact
     with a bash console via the API. This class manages sending commands,
     polling for output, and determining when commands have finished. It's a bit
     clunky, but it works well enough for basic tasks.
