@@ -24,4 +24,6 @@ jobs:
           uv pip install -e ".[dev]"
           uv add --editable "../[dev]"
       - name: Run tests
-        run: uv run pytest
+        run: |
+          cd django-simple-deploy/
+          uv run pytest
