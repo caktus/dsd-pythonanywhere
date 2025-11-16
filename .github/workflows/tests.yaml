@@ -20,6 +20,7 @@ jobs:
         run: |
           git clone https://github.com/django-simple-deploy/django-simple-deploy.git
           cd django-simple-deploy/
+          uv venv
           uv pip install -e ".[dev]"
           uv add --editable "../[dev]"
       - name: Run tests
