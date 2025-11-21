@@ -56,8 +56,8 @@ class CommandRun:
         command.
 
         Args:
-            expected_command: If provided, only return prompts containing this
-                              command.
+            expected_command: If provided, return most recent prompt containing
+                              this command.
 
         Returns: Line index if found, None otherwise
         """
