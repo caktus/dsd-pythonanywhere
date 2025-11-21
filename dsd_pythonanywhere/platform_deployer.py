@@ -53,6 +53,11 @@ from dsd_pythonanywhere.client import APIClient
 
 from . import deploy_messages as platform_msgs
 
+REMOTE_SETUP_SCRIPT_URL = os.getenv(
+    "REMOTE_SETUP_SCRIPT_URL",
+    "https://raw.githubusercontent.com/caktus/dsd-pythonanywhere/refs/heads/add-api-client/scripts/setup.sh",
+)
+
 
 class PlatformDeployer:
     """Perform the initial deployment to PythonAnywhere
@@ -120,9 +125,7 @@ class PlatformDeployer:
     def _clone_and_run_setup_script(self):
         client = APIClient(username=os.getenv("API_USER"))
         # Proof of concept to run script remotely on Python Anywhere
-        cmd = [
-            "curl -fsSL https://bass-liked-specially.ngrok-free.app/scripts/setup.sh | bash -s --"
-        ]
+        cmd = [f"curl -fsSL {REMOTE_SETUP_SCRIPT_URL} | bash -s --"]
         origin_url = self._get_origin_url()
         repo_name = Path(origin_url).stem
         cmd.append(f"{origin_url} {repo_name}")
