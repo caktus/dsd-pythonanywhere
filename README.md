@@ -1,8 +1,20 @@
 # dsd-pythonanywhere
 
-A plugin for deploying Django projects to PythonAnywhere, using django-simple-deploy.
+A plugin for deploying Django projects to [PythonAnywhere](https://www.pythonanywhere.com/), using django-simple-deploy.
 
 For full documentation, see the documentation for [django-simple-deploy](https://django-simple-deploy.readthedocs.io/en/latest/).
+
+**Current status:** In active development. The plugin currently clones your
+repository to PythonAnywhere, but it doesn't configure the web app just yet. Not
+yet recommended for actual deployments yet.
+
+## Motivation
+
+This plugin is motivated by the desire to provide a deployment option for
+`django-simple-deploy` that doesn't require a credit card to get started.
+PythonAnywhere offers a free tier that allows users to deploy small Django apps
+and may be a helpful way to get small Django apps online without financial
+commitment.
 
 ## Quickstart
 
