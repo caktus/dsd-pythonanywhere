@@ -55,7 +55,7 @@ from . import deploy_messages as platform_msgs
 
 REMOTE_SETUP_SCRIPT_URL = os.getenv(
     "REMOTE_SETUP_SCRIPT_URL",
-    "https://raw.githubusercontent.com/caktus/dsd-pythonanywhere/refs/heads/add-api-client/scripts/setup.sh",
+    "https://raw.githubusercontent.com/caktus/dsd-pythonanywhere/refs/heads/main/scripts/setup.sh",
 )
 
 
@@ -140,7 +140,7 @@ class PlatformDeployer:
         requirements = (
             "gunicorn",
             "dj-database-url",
-            "dsd-pythonanywhere @ git+https://github.com/caktus/dsd-pythonanywhere@add-api-client",
+            "dsd-pythonanywhere @ git+https://github.com/caktus/dsd-pythonanywhere@main",
         )
         plugin_utils.add_packages(requirements)
 

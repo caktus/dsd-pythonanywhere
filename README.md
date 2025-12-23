@@ -46,7 +46,7 @@ cd dsd-dev/
 
 ```sh
 # Clone dsd-pythonanywhere for development (and switch to branch being worked on)
-git clone git@github.com:caktus/dsd-pythonanywhere.git --branch add-api-client
+git clone git@github.com:caktus/dsd-pythonanywhere.git
 ```
 
 3. Clone `django-simple-deploy` and create the blog sample project
