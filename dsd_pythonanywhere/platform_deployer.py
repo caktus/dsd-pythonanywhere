@@ -79,8 +79,9 @@ class PlatformDeployer:
         self._prep_automate_all()
 
         # Configure project for deployment to PythonAnywhere
-        self._clone_and_run_setup_script()
         self._add_requirements()
+        self._modify_settings()
+        self._modify_gitignore()
 
         self._conclude_automate_all()
         self._show_success_message()
@@ -138,11 +139,35 @@ class PlatformDeployer:
         """Add requirements for deploying to PythonAnywhere."""
         plugin_utils.write_output("  Adding deploy requirements...")
         requirements = (
-            "gunicorn",
-            "dj-database-url",
             "dsd-pythonanywhere @ git+https://github.com/caktus/dsd-pythonanywhere@main",
+            "python-dotenv",
+            "dj-database-url",
         )
         plugin_utils.add_packages(requirements)
+
+    def _modify_settings(self):
+        """Add platformsh-specific settings."""
+        plugin_utils.write_output("  Modifying settings.py for PythonAnywhere...")
+        template_path = self.templates_path / "settings.py"
+        context = {"deployed_project_name": self._get_deployed_project_name()}
+        plugin_utils.modify_settings_file(template_path, context)
+
+    def _modify_gitignore(self) -> None:
+        """Ensure .gitignore ignores deployment files."""
+        patterns = [".env"]
+        gitignore_path = dsd_config.git_path / ".gitignore"
+        if not gitignore_path.exists():
+            # Make the .gitignore file with patterns.
+            gitignore_path.write_text("\n".join(patterns), encoding="utf-8")
+            plugin_utils.write_output("No .gitignore file found; created .gitignore.")
+            plugin_utils.write_output("Added .env to .gitignore.")
+        else:
+            # Append patterns to .gitignore if not already there.
+            contents = gitignore_path.read_text()
+            patterns_to_add = "".join([pattern for pattern in patterns if pattern not in contents])
+            contents += f"\n{patterns_to_add}"
+            gitignore_path.write_text(contents)
+            plugin_utils.write_output(f"Added {patterns_to_add} to .gitignore")
 
     def _conclude_automate_all(self):
         """Finish automating the push to PythonAnywhere.
@@ -160,7 +185,7 @@ class PlatformDeployer:
         plugin_utils.write_output("  Deploying to PythonAnywhere...")
 
         # Should set self.deployed_url, which will be reported in the success message.
-        pass
+        self._clone_and_run_setup_script()
 
     def _show_success_message(self):
         """After a successful run, show a message about what to do next.
