@@ -57,6 +57,11 @@ REMOTE_SETUP_SCRIPT_URL = os.getenv(
     "REMOTE_SETUP_SCRIPT_URL",
     "https://raw.githubusercontent.com/caktus/dsd-pythonanywhere/refs/heads/main/scripts/setup.sh",
 )
+PLUGIN_REQUIREMENTS = (
+    "dsd-pythonanywhere @ git+https://github.com/caktus/dsd-pythonanywhere@main",
+    "python-dotenv",
+    "dj-database-url",
+)
 
 
 class PlatformDeployer:
@@ -138,12 +143,7 @@ class PlatformDeployer:
     def _add_requirements(self):
         """Add requirements for deploying to PythonAnywhere."""
         plugin_utils.write_output("  Adding deploy requirements...")
-        requirements = (
-            "dsd-pythonanywhere @ git+https://github.com/caktus/dsd-pythonanywhere@main",
-            "python-dotenv",
-            "dj-database-url",
-        )
-        plugin_utils.add_packages(requirements)
+        plugin_utils.add_packages(PLUGIN_REQUIREMENTS)
 
     def _modify_settings(self):
         """Add platformsh-specific settings."""
