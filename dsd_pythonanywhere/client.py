@@ -4,10 +4,12 @@ import re
 import time
 import webbrowser
 from dataclasses import dataclass
+from pathlib import Path
 
 import requests
 from django_simple_deploy.management.commands.utils import plugin_utils
 from pythonanywhere_core.base import get_api_endpoint
+from pythonanywhere_core.webapp import Webapp
 from requests.adapters import HTTPAdapter
 
 logger = logging.getLogger(__name__)
@@ -123,7 +125,7 @@ class Console:
     See https://help.pythonanywhere.com/pages/API/#consoles for more details.
     """
 
-    def __init__(self, bash_console: dict, api_client: "APIClient"):
+    def __init__(self, bash_console: dict, api_client: "PythonAnywhereClient"):
         # Full console info returned from Consoles API endpoint
         self.bash_console = bash_console
         self.api_client = api_client
@@ -255,8 +257,8 @@ class Console:
         return result.output
 
 
-class APIClient:
-    """PythonAnywhere API client."""
+class PythonAnywhereClient:
+    """Client for interacting with the PythonAnywhere API, including console and webapp management."""
 
     def __init__(self, username: str):
         self.username = username
@@ -265,19 +267,19 @@ class APIClient:
         self.session.headers.update({"Authorization": f"Token {self.token}"})
         self.session.mount("https://", HTTPAdapter(max_retries=3))
 
+        # Initialize webapp for this user's domain
+        self.domain_name = f"{username}.{self._pythonanywhere_domain}"
+        self.webapp = Webapp(self.domain_name)
+
+    @property
+    def _pythonanywhere_domain(self) -> str:
+        """Get the PythonAnywhere domain (e.g., 'pythonanywhere.com')."""
+        return os.getenv("PYTHONANYWHERE_DOMAIN", "pythonanywhere.com")
+
     @property
     def _hostname(self) -> str:
-        """Get the PythonAnywhere hostname.
-
-        This uses the same method as pythonanywhere_core to determine the hostname.
-
-        Returns:
-            The hostname (e.g., "www.pythonanywhere.com")
-        """
-        return os.getenv(
-            "PYTHONANYWHERE_SITE",
-            "www." + os.getenv("PYTHONANYWHERE_DOMAIN", "pythonanywhere.com"),
-        )
+        """Get the PythonAnywhere API hostname (e.g., 'www.pythonanywhere.com')."""
+        return os.getenv("PYTHONANYWHERE_SITE", f"www.{self._pythonanywhere_domain}")
 
     def _base_url(self, flavor: str) -> str:
         """Construct the base URL for a specific API endpoint flavor.
@@ -323,6 +325,8 @@ class APIClient:
         log_message(f"API response: {response.status_code} {response.text}")
         return response
 
+    # --- Console management methods ---
+
     def get_active_console(self) -> Console:
         """Return an active PythonAnywhere bash console."""
         base_url = self._base_url("consoles")
@@ -354,3 +358,79 @@ class APIClient:
             raise RuntimeError("No active bash console found")
 
         return console.run_command(command)
+
+    # --- Webapp management methods ---
+
+    def webapp_exists(self) -> bool:
+        """Check if a web app already exists for this domain.
+
+        Returns:
+            True if a webapp exists, False otherwise
+        """
+        webapps = self.webapp.list_webapps()
+        return any(app.get("domain_name") == self.domain_name for app in webapps)
+
+    def create_webapp(
+        self,
+        python_version: str,
+        virtualenv_path: str | Path,
+        project_path: str | Path,
+        nuke: bool = False,
+    ) -> dict:
+        """Create a new web app on PythonAnywhere.
+
+        Args:
+            python_version: Python version (e.g., "3.13")
+            virtualenv_path: Path to the virtual environment
+            project_path: Path to the Django project
+            nuke: If True, delete existing webapp before creating
+
+        Returns:
+            The webapp configuration dict
+        """
+        log_message(f"Creating webapp for {self.domain_name}...")
+        self.webapp.sanity_checks(nuke=nuke)
+        result = self.webapp.create(
+            python_version=python_version,
+            virtualenv_path=str(virtualenv_path),
+            project_path=str(project_path),
+            nuke=nuke,
+        )
+        log_message(f"Webapp created: {self.domain_name}")
+        return result
+
+    def reload_webapp(self) -> None:
+        """Reload the web app to apply changes."""
+        log_message(f"Reloading webapp {self.domain_name}...")
+        self.webapp.reload()
+        log_message("Webapp reloaded successfully")
+
+    def create_or_update_webapp(
+        self,
+        python_version: str,
+        virtualenv_path: str | Path,
+        project_path: str | Path,
+    ) -> None:
+        """Create or update a webapp.
+
+        This is a convenience method that:
+        1. Creates the webapp if it doesn't exist
+        2. Reloads the webapp
+
+        Args:
+            python_version: Python version (e.g., "3.13")
+            virtualenv_path: Path to the virtual environment
+            project_path: Path to the Django project
+        """
+        if not self.webapp_exists():
+            self.create_webapp(
+                python_version=python_version,
+                virtualenv_path=virtualenv_path,
+                project_path=project_path,
+                nuke=False,
+            )
+        else:
+            log_message(f"Webapp {self.domain_name} already exists, skipping creation")
+
+        # Always reload to apply changes
+        self.reload_webapp()

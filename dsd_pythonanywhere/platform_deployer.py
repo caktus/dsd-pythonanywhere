@@ -49,7 +49,7 @@ from pathlib import Path
 from django_simple_deploy.management.commands.utils import plugin_utils
 from django_simple_deploy.management.commands.utils.plugin_utils import dsd_config
 
-from dsd_pythonanywhere.client import APIClient
+from dsd_pythonanywhere.client import PythonAnywhereClient
 
 from . import deploy_messages as platform_msgs
 
@@ -73,6 +73,8 @@ class PlatformDeployer:
 
     def __init__(self):
         self.templates_path = Path(__file__).parent / "templates"
+        self.api_user = os.getenv("API_USER")
+        self.client = PythonAnywhereClient(username=self.api_user)
 
     # --- Public methods ---
 
@@ -105,7 +107,7 @@ class PlatformDeployer:
         pass
 
     def _get_origin_url(self) -> str:
-        """"""
+        """Get the git remote origin URL."""
         origin_url = (
             plugin_utils.run_quick_command("git config --get remote.origin.url", check=True)
             .stdout.decode()
@@ -123,7 +125,7 @@ class PlatformDeployer:
         return https_url
 
     def _get_deployed_project_name(self):
-        return os.getenv("API_USER")
+        return self.api_user
 
     def _get_repo_name(self) -> str:
         """Get the repository name from the git remote URL.
@@ -142,16 +144,34 @@ class PlatformDeployer:
         pass
 
     def _clone_and_run_setup_script(self):
-        client = APIClient(username=os.getenv("API_USER"))
-        # Proof of concept to run script remotely on Python Anywhere
+        # Run the setup script to clone repo and install dependencies
         cmd = [f"curl -fsSL {REMOTE_SETUP_SCRIPT_URL} | bash -s --"]
         origin_url = self._get_origin_url()
         repo_name = self._get_repo_name()
-        cmd.append(f"{origin_url} {repo_name}")
+        django_project_name = dsd_config.local_project_name
+        cmd.append(f"{origin_url} {repo_name} {django_project_name}")
         cmd = " ".join(cmd)
         plugin_utils.write_output(f"  Cloning and running setup script: {cmd}")
-        client.run_command(cmd)
+        self.client.run_command(cmd)
         plugin_utils.write_output("Done cloning and running setup script.")
+        # Finally, create the webapp
+        self._create_webapp(client=self.client, repo_name=repo_name)
+
+    def _create_webapp(self, client: PythonAnywhereClient, repo_name: str):
+        """Create the webapp on PythonAnywhere."""
+        plugin_utils.write_output("  Creating webapp on PythonAnywhere...")
+
+        # Paths on PythonAnywhere (remote home directory)
+        remote_home = Path(f"/home/{client.username}")
+        project_path = remote_home / repo_name
+        virtualenv_path = remote_home / "venv"
+
+        client.create_or_update_webapp(
+            python_version="3.13",
+            virtualenv_path=virtualenv_path,
+            project_path=project_path,
+        )
+        plugin_utils.write_output("Webapp created and configured.")
 
     def _add_requirements(self):
         """Add requirements for deploying to PythonAnywhere."""
@@ -215,6 +235,7 @@ class PlatformDeployer:
 
         # Should set self.deployed_url, which will be reported in the success message.
         self._clone_and_run_setup_script()
+
         self.deployed_url = f"https://{self._get_deployed_project_name()}.pythonanywhere.com"
 
     def _show_success_message(self):

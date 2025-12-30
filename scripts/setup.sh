@@ -1,19 +1,25 @@
 #!/bin/bash
 set -e
 
-if [ -z "$1" ] || [ -z "$2" ]; then
-	echo "Usage: $0 <git-repo-url> <directory-name> <python-version>"
+if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ]; then
+	echo "Usage: $0 <git-repo-url> <directory-name> <django-project-name> [python-version] [wsgi-dest-prefix]"
 	exit 1
 fi
+
+GIT_REPO_URL=$1
+REPO_NAME=$2
+DJANGO_PROJECT_NAME=$3
+PYTHON_VERSION=${4:-python3.13}
+WSGI_DEST_PREFIX=${5:-/var/www}
 
 # Clone the repository from the provided Git URL
 
 echo "Cloning repository..."
 
-if [ ! -d "$2" ]; then
-	git clone "$1" "$2"
+if [ ! -d "$REPO_NAME" ]; then
+	git clone "$GIT_REPO_URL" "$REPO_NAME"
 else
-	echo "Directory $2 already exists. Skipping clone."
+	echo "Directory $REPO_NAME already exists. Skipping clone."
 fi
 
 # Create and activate a Python virtual environment, if it doesn't already exist
@@ -22,7 +28,7 @@ echo "Setting up Python virtual environment..."
 
 if [ ! -d "venv" ]; then
 	echo "Creating virtual environment..."
-	${3:-python3.13} -m venv venv
+	$PYTHON_VERSION -m venv venv
 fi
 
 echo "Activating virtual environment..."
@@ -31,16 +37,16 @@ source venv/bin/activate
 echo "Installing dependencies..."
 
 ./venv/bin/pip install --upgrade pip
-./venv/bin/pip install -r $2/requirements.txt
+./venv/bin/pip install -r $REPO_NAME/requirements.txt
 
 # Create .env file with environment variables
 
 echo "Creating .env file..."
 
-if [ ! -f "$2/.env" ]; then
+if [ ! -f "$REPO_NAME/.env" ]; then
 	# Generate a random Django secret key
 	DJANGO_SECRET_KEY=$(./venv/bin/python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())")
-	cat > "$2/.env" << EOF
+	cat > "$REPO_NAME/.env" << EOF
 DEBUG=TRUE
 ON_PYTHONANYWHERE=TRUE
 SECRET_KEY=$DJANGO_SECRET_KEY
@@ -49,5 +55,16 @@ EOF
 else
 	echo ".env file already exists. Skipping creation."
 fi
+
+# Copy wsgi.py to PythonAnywhere's wsgi location
+USERNAME=$(whoami)
+DOMAIN="${USERNAME}.pythonanywhere.com"
+WSGI_DEST="${WSGI_DEST_PREFIX}/${DOMAIN//./_}_wsgi.py"
+WSGI_SRC="$REPO_NAME/$DJANGO_PROJECT_NAME/wsgi.py"
+
+echo "Copying WSGI file from $WSGI_SRC to $WSGI_DEST..."
+mkdir -p "$WSGI_DEST_PREFIX"
+cp "$WSGI_SRC" "$WSGI_DEST"
+echo "WSGI file copied."
 
 echo "Setup complete!!!"
