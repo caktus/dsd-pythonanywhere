@@ -14,9 +14,8 @@ A plugin for deploying Django projects to [PythonAnywhere](https://www.pythonany
 
 For full documentation, see the documentation for [django-simple-deploy](https://django-simple-deploy.readthedocs.io/en/latest/).
 
-**Current status:** In active development. The plugin currently clones your
-repository to PythonAnywhere, but it doesn't configure the web app just yet. Not
-yet recommended for actual deployments yet.
+**Current status:** In active development. Not yet recommended for actual
+deployments yet.
 
 - [Motivation](#motivation)
 - [Quickstart](#quickstart)
