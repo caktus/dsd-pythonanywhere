@@ -31,4 +31,4 @@ jobs:
       - name: Run integration tests
         run: |
           cd django-simple-deploy/
-          uv run pytest
+          uv run pytest -x
