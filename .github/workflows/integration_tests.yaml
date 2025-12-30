@@ -1,0 +1,29 @@
+name: tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install uv and set the Python version
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.14"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+      - name: Clone django-simple-deploy parent project and install dependencies
+        run: |
+          git clone https://github.com/django-simple-deploy/django-simple-deploy.git
+          cd django-simple-deploy/
+          uv venv
+          uv pip install -e ".[dev]"
+          uv add --editable "../[dev]"
+      - name: Run integration tests
+        run: |
+          cd django-simple-deploy/
+          uv run pytest
