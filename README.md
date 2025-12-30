@@ -70,8 +70,6 @@ sequenceDiagram
     participant GitHub
     participant PA as PythonAnywhere
 
-    User->>User: Run `python manage.py deploy`
-    User->>User: Edit settings.py, wsgi.py, etc.
     User->>GitHub: Commit & push changes
 
     User->>PA: Bash Console API: clone repo
