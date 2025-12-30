@@ -33,13 +33,8 @@ jobs:
           git config --global user.email "ci_tester@example.com"
           git config --global user.name "Ci Tester"
           git config --global init.defaultBranch main
-      - name: Run unit tests
-        run: |
-          cd django-simple-deploy/
-          source .venv/bin/activate
-          pytest ../dsd-pythonanywhere/tests/unit_tests -x
       - name: Run integration tests
         run: |
           cd django-simple-deploy/
           source .venv/bin/activate
-          pytest ../dsd-pythonanywhere/tests/integration_tests -x
+          pytest -x
