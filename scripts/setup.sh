@@ -2,7 +2,7 @@
 set -e
 
 if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ]; then
-	echo "Usage: $0 <git-repo-url> <directory-name> <django-project-name> [python-version] [wsgi-dest-prefix]"
+	echo "Usage: $0 <git-repo-url> <directory-name> <django-project-name> [python-version]"
 	exit 1
 fi
 
@@ -10,7 +10,6 @@ GIT_REPO_URL=$1
 REPO_NAME=$2
 DJANGO_PROJECT_NAME=$3
 PYTHON_VERSION=${4:-python3.13}
-WSGI_DEST_PREFIX=${5:-/var/www}
 
 # Clone the repository from the provided Git URL
 
@@ -55,16 +54,5 @@ EOF
 else
 	echo ".env file already exists. Skipping creation."
 fi
-
-# Copy wsgi.py to PythonAnywhere's wsgi location
-USERNAME=$(whoami)
-DOMAIN="${USERNAME}.pythonanywhere.com"
-WSGI_DEST="${WSGI_DEST_PREFIX}/${DOMAIN//./_}_wsgi.py"
-WSGI_SRC="$REPO_NAME/$DJANGO_PROJECT_NAME/wsgi.py"
-
-echo "Copying WSGI file from $WSGI_SRC to $WSGI_DEST..."
-mkdir -p "$WSGI_DEST_PREFIX"
-cp "$WSGI_SRC" "$WSGI_DEST"
-echo "WSGI file copied."
 
 echo "Setup complete!!!"

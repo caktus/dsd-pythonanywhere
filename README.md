@@ -10,11 +10,10 @@ yet recommended for actual deployments yet.
 
 ## Motivation
 
-This plugin is motivated by the desire to provide a deployment option for
-`django-simple-deploy` that doesn't require a credit card to get started.
-PythonAnywhere offers a free tier that allows users to deploy small Django apps
-and may be a helpful way to get small Django apps online without financial
-commitment.
+This plugin hopes to provide a deployment option for `django-simple-deploy` that
+doesn't require a credit card to get started. PythonAnywhere offers a free tier
+that allows users to deploy small Django apps and may be a helpful way to get
+small Django apps online without financial commitment.
 
 ## Quickstart
 
@@ -28,7 +27,7 @@ requires a few prerequisites:
   which is a limited account with one web app, but requires no credit card.
 - Generate an [API token](https://help.pythonanywhere.com/pages/GettingYourAPIToken)
 - Ideally, stay logged in to PythonAnywhere in your default browser to make the
-  first deployment smoother.
+  deployment smoother.
 
 ## Plugin Development
 

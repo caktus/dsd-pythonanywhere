@@ -9,7 +9,7 @@ description = "A plugin for django-simple-deploy, supporting deployments to Pyth
 readme = "README.md"
 
 authors = [
-    {name = "Eric Matthes", email = "ehmatthes@gmail.com" },
+    {name = "Caktus Consulting Group", email = "solutions@caktusgroup.com" },
 ]
 
 classifiers = [
