@@ -41,8 +41,9 @@ if [ ! -f "$2/.env" ]; then
 	# Generate a random Django secret key
 	DJANGO_SECRET_KEY=$(./venv/bin/python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())")
 	cat > "$2/.env" << EOF
-ON_PYTHONANYWHERE=true
-DJANGO_SECRET_KEY=$DJANGO_SECRET_KEY
+DEBUG=TRUE
+ON_PYTHONANYWHERE=TRUE
+SECRET_KEY=$DJANGO_SECRET_KEY
 EOF
 	echo ".env file created."
 else
