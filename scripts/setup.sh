@@ -2,7 +2,7 @@
 set -e
 
 if [ -z "$1" ] || [ -z "$2" ]; then
-	echo "Usage: $0 <git-repo-url> <directory-name>"
+	echo "Usage: $0 <git-repo-url> <directory-name> <python-version>"
 	exit 1
 fi
 
@@ -22,7 +22,7 @@ echo "Setting up Python virtual environment..."
 
 if [ ! -d "venv" ]; then
 	echo "Creating virtual environment..."
-	python3.12 -m venv venv
+	${3:-python3.13} -m venv venv
 fi
 
 echo "Activating virtual environment..."
@@ -32,3 +32,21 @@ echo "Installing dependencies..."
 
 ./venv/bin/pip install --upgrade pip
 ./venv/bin/pip install -r $2/requirements.txt
+
+# Create .env file with environment variables
+
+echo "Creating .env file..."
+
+if [ ! -f "$2/.env" ]; then
+	# Generate a random Django secret key
+	DJANGO_SECRET_KEY=$(./venv/bin/python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())")
+	cat > "$2/.env" << EOF
+ON_PYTHONANYWHERE=true
+DJANGO_SECRET_KEY=$DJANGO_SECRET_KEY
+EOF
+	echo ".env file created."
+else
+	echo ".env file already exists. Skipping creation."
+fi
+
+echo "Setup complete!!!"
