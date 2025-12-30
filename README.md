@@ -1,7 +1,7 @@
 <!-- omit in toc -->
 # dsd-pythonanywhere
 
-<div style="display: flex; gap: 10px; align-items: center; margin-bottom: 1em;">
+<div align="center">
   <a target="_blank" href="https://github.com/caktus/dsd-pythonanywhere/blob/main/LICENSE" style="background:none">
     <img src="https://img.shields.io/badge/License-BSD-blue.svg?label=license">
   </a>
