@@ -1,3 +1,4 @@
+<!-- omit in toc -->
 # dsd-pythonanywhere
 
 A plugin for deploying Django projects to [PythonAnywhere](https://www.pythonanywhere.com/), using django-simple-deploy.
@@ -7,6 +8,11 @@ For full documentation, see the documentation for [django-simple-deploy](https:/
 **Current status:** In active development. The plugin currently clones your
 repository to PythonAnywhere, but it doesn't configure the web app just yet. Not
 yet recommended for actual deployments yet.
+
+- [Motivation](#motivation)
+- [Quickstart](#quickstart)
+- [Plugin Development](#plugin-development)
+  - [Automated Tests](#automated-tests)
 
 ## Motivation
 
@@ -32,7 +38,15 @@ requires a few prerequisites:
 ## Plugin Development
 
 To set up a development environment for working on this plugin alongside
-`django-simple-deploy`, follow these steps.
+`django-simple-deploy`, follow these steps. This will create a directory
+structure that looks like this:
+
+```sh
+dsd-dev/
+├── django-simple-deploy             # ← parent project needed to run integration tests
+├── dsd-pythonanywhere               # ← our plugin development directory
+└── dsd-dev-project_[random_string]  # ← sample project for testing deployments
+```
 
 1. Create a parent directory to hold your development work:
 
@@ -53,7 +67,7 @@ git clone git@github.com:caktus/dsd-pythonanywhere.git
 ```sh
 git clone git@github.com:django-simple-deploy/django-simple-deploy.git
 cd django-simple-deploy/
-# Builds a copy of the sample project in parent dir for testing (../dsd-dev-project-[random_string]/)
+# Builds a copy of the sample project in parent dir for testing (../dsd-dev-project_[random_string]/)
 uv run python tests/e2e_tests/utils/build_dev_env.py
 ```
 
@@ -61,7 +75,7 @@ uv run python tests/e2e_tests/utils/build_dev_env.py
 
 ```sh
 cd ../
-cd dsd-dev-project-[random_string]/
+cd dsd-dev-project_[random_string]/
 source .venv/bin/activate
 # Install dsd-pythonanywhere plugin in editable mode
 pip install -e "../dsd-pythonanywhere/[dev]"
@@ -134,4 +148,26 @@ in your sample project to point to the ngrok URL for `scripts/setup.sh`:
 
 ```sh
 export REMOTE_SETUP_SCRIPT_URL="https://<your_ngrok_subdomain>.ngrok-free.app/scripts/setup.sh"
+```
+
+### Automated Tests
+
+To run the unit tests for this plugin, run:
+
+```sh
+cd dsd-pythonanywhere/
+uv run pytest
+```
+
+To run the integration tests (and unit tests), which exercise the mechanics of
+`python manage.py deploy` locally without actually deploying to PythonAnywhere,
+run:
+
+```sh
+cd django-simple-deploy/
+# Install dsd-pythonanywhere plugin in editable mode
+uv add --editable "../dsd-pythonanywhere[dev]"
+uv run pytest
+# To skip platform_agnostic_tests for faster feedback during plugin development:
+uv run pytest --ignore=tests/integration_tests/platform_agnostic_tests
 ```
