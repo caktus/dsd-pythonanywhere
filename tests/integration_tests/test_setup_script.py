@@ -1,6 +1,7 @@
 """Integration tests for the PythonAnywhere setup.sh script."""
 
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -15,7 +16,8 @@ def setup_script_result(tmp_path_factory) -> dict:
     tmp_path = tmp_path_factory.mktemp("setup_script")
     script_path = Path(__file__).parent.parent.parent / "scripts" / "setup.sh"
     dir_name = "test_project"
-    python_version = "python3.13"
+    # Use the current Python version available on CI for testing
+    python_version = f"python{sys.version_info.major}.{sys.version_info.minor}"
 
     # Create a minimal git repository with a requirements.txt file
     source_repo = tmp_path / "source_repo"
