@@ -1,16 +1,9 @@
-"""Integration tests for django-simple-deploy, targeting Fly.io."""
+"""Integration tests for django-simple-deploy, targeting PythonAnywhere."""
 
 from pathlib import Path
 
 import pytest
 
-from tests.integration_tests.conftest import (
-    dsd_version,
-    pkg_manager,
-    reset_test_project,
-    run_dsd,
-    tmp_project,
-)
 from tests.integration_tests.utils import it_helper_functions as hf
 
 # --- Fixtures ---

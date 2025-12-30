@@ -64,7 +64,7 @@ include-package-data = true
 
 [tool.ruff]
 line-length = 100
-exclude = ["dsd_pythonanywhere/templates/settings.py", "tests/integration_tests/test_pythonanywhere_config.py"]
+exclude = ["dsd_pythonanywhere/templates/settings.py"]
 
 [dependency-groups]
 dev = [

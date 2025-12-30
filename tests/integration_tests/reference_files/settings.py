@@ -134,7 +134,7 @@ LOGIN_URL = "users:login"
 
 
 # PythonAnywhere settings.
-import os
+import os  # noqa: E402
 
 try:
     from dotenv import load_dotenv

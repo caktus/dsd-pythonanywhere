@@ -22,9 +22,7 @@ def setup_script_result(tmp_path_factory) -> dict:
     source_repo.mkdir()
     (source_repo / "requirements.txt").write_text("django\n")
     subprocess.run(["git", "init"], cwd=source_repo, check=True, capture_output=True)
-    subprocess.run(
-        ["git", "add", "."], cwd=source_repo, check=True, capture_output=True
-    )
+    subprocess.run(["git", "add", "."], cwd=source_repo, check=True, capture_output=True)
     subprocess.run(
         ["git", "commit", "-m", "Initial commit"],
         cwd=source_repo,
