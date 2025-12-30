@@ -126,9 +126,16 @@ class PlatformDeployer:
         return os.getenv("API_USER")
 
     def _get_repo_name(self) -> str:
-        """Get the repository name from the git remote URL."""
-        origin_url = self._get_origin_url()
-        return Path(origin_url).stem
+        """Get the repository name from the git remote URL.
+
+        Falls back to the project root directory name if no remote is configured.
+        """
+        try:
+            origin_url = self._get_origin_url()
+            return Path(origin_url).stem
+        except Exception:
+            # No remote configured, use project directory name
+            return dsd_config.project_root.name
 
     def _prep_automate_all(self):
         """Take any further actions needed if using automate_all."""

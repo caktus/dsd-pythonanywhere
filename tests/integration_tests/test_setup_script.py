@@ -6,7 +6,6 @@ from pathlib import Path
 
 import pytest
 
-
 # --- Fixtures ---
 
 
@@ -74,11 +73,12 @@ def test_setup_script_creates_env_file(setup_script_result):
     assert env_file.exists()
 
     env_content = env_file.read_text()
-    assert "ON_PYTHONANYWHERE=true" in env_content
-    assert "DJANGO_SECRET_KEY=" in env_content
+    assert "DEBUG=TRUE" in env_content
+    assert "ON_PYTHONANYWHERE=TRUE" in env_content
+    assert "SECRET_KEY=" in env_content
 
     # Verify secret key is not empty
     for line in env_content.splitlines():
-        if line.startswith("DJANGO_SECRET_KEY="):
+        if line.startswith("SECRET_KEY="):
             secret_key = line.split("=", 1)[1]
             assert len(secret_key) == 50
