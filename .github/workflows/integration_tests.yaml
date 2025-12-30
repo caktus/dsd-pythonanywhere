@@ -14,8 +14,6 @@ jobs:
         uses: astral-sh/setup-uv@v7
         with:
           python-version: "3.14"
-          enable-cache: true
-          cache-dependency-glob: "uv.lock"
       - name: Clone django-simple-deploy parent project and install dependencies
         run: |
           git clone https://github.com/django-simple-deploy/django-simple-deploy.git
