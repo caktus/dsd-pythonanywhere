@@ -2,9 +2,13 @@
 
 # PythonAnywhere settings.
 import os
-from dotenv import load_dotenv
 
-load_dotenv()
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv()
+except ImportError:
+    pass
 
 if os.getenv("ON_PYTHONANYWHERE"):
     import dj_database_url

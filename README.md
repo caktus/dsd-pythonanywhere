@@ -68,6 +68,14 @@ source .venv/bin/activate
 pip install -e "../dsd-pythonanywhere/[dev]"
 ```
 
+Your development environment is now configured to use your local copy of
+`django-simple-deploy` and the `dsd-pythonanywhere` plugin in editable mode.
+Verify with:
+
+```sh
+pip show django_simple_deploy dsd_pythonanywhere | grep Editable
+```
+
 5. Create a [new public repository on GitHub](https://github.com/new).
 
 6. Push the sample project to your new repository:
@@ -85,9 +93,44 @@ export API_USER=[your_pythonanywhere_username]
 export API_TOKEN=[your_pythonanywhere_api_token]
 ```
 
+If desired, you can add these lines to a `.env` file in the parent directory to
+more easily load them when working on the project:
+
+```sh
+source ../.env
+```
+
 8. You can now make changes to `dsd-pythonanywhere` in the cloned directory
 and test them by running deployments from the sample project:
 
 ```sh
 python manage.py deploy
+# To reset your sample project to a clean state between tests
+python ./reset_project.py
+```
+
+9. (Optional) Forward local ports for script debugging on PythonAnywhere:
+
+To debug `scripts/setup.sh` that's run on PythonAnywhere during deployment, you
+can use a service like [ngrok](https://ngrok.com/) to expose your local
+`dsd_pythonanywhere` development code to the remote environment. First, start ngrok to
+forward a local port (e.g., `8000`):
+
+```sh
+# In a new terminal
+ngrok http 8000 --url https://<your_ngrok_subdomain>.ngrok-free.app
+```
+
+Then run a local HTTP server to serve your `dsd_pythonanywhere` code:
+
+```sh
+# In another terminal in the dsd-pythonanywhere directory
+uv run python -m http.server 8000
+```
+
+Finally, set the `REMOTE_SETUP_SCRIPT_URL` environment variable
+in your sample project to point to the ngrok URL for `scripts/setup.sh`:
+
+```sh
+export REMOTE_SETUP_SCRIPT_URL="https://<your_ngrok_subdomain>.ngrok-free.app/scripts/setup.sh"
 ```
