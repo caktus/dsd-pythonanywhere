@@ -36,5 +36,4 @@ jobs:
       - name: Run integration tests
         run: |
           cd django-simple-deploy/
-          source .venv/bin/activate
-          pytest -x
+          uv run pytest
