@@ -30,6 +30,14 @@ doesn't require a credit card to get started. PythonAnywhere offers a free tier
 that allows users to deploy small Django apps and may be a helpful way to get
 small Django apps online without financial commitment.
 
+```mermaid
+graph TD;
+    A-->B;
+    A-->C;
+    B-->D;
+    C-->D;
+```
+
 ## Quickstart
 
 Deployment to [PythonAnywhere](https://www.pythonanywhere.com/) with this plugin
