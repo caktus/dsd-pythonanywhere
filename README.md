@@ -19,6 +19,7 @@ repository to PythonAnywhere, but it doesn't configure the web app just yet. Not
 yet recommended for actual deployments yet.
 
 - [Motivation](#motivation)
+- [Approach](#approach)
 - [Quickstart](#quickstart)
 - [Plugin Development](#plugin-development)
   - [Automated Tests](#automated-tests)
@@ -30,13 +31,41 @@ doesn't require a credit card to get started. PythonAnywhere offers a free tier
 that allows users to deploy small Django apps and may be a helpful way to get
 small Django apps online without financial commitment.
 
+## Approach
+
+PythonAnywhere provides a
+[`pa_autoconfigure_django.py`](https://github.com/pythonanywhere/helper_scripts/blob/master/scripts/pa_autoconfigure_django.py)
+helper script, currently used in the [Django Girls
+tutorial](https://tutorial.djangogirls.org/en/deploy/). However, it's designed
+to run directly on PythonAnywhere, which presents challenges: using a web-based
+console, changes not being committed/pushed to version control, etc.
+
+This plugin integrates with `django-simple-deploy` to provide a more familiar
+local workflow, though with some caveats due to free tier limitations (primarily
+lack of SSH access).
+
 ```mermaid
-graph TD;
-    A-->B;
-    A-->C;
-    B-->D;
-    C-->D;
+sequenceDiagram
+    participant User as Local Machine
+    participant GitHub
+    participant PA as PythonAnywhere
+
+    User->>User: Run `python manage.py deploy`
+    User->>User: Edit settings.py, wsgi.py, etc.
+    User->>GitHub: Commit & push changes
+
+    User->>PA: Bash Console API: clone repo
+    PA->>GitHub: git clone
+    PA->>PA: Install dependencies & create .env
+
+    User->>PA: Webapp API: create webapp
+    User->>PA: Bash Console API: copy wsgi.py
+
+    PA-->>User: 🎉 App deployed!
 ```
+
+**Note:** Users should stay logged into PythonAnywhere in their default browser
+during deployment, as the console API may need to start a new console session.
 
 ## Quickstart
 
