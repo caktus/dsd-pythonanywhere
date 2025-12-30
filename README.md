@@ -19,8 +19,8 @@ repository to PythonAnywhere, but it doesn't configure the web app just yet. Not
 yet recommended for actual deployments yet.
 
 - [Motivation](#motivation)
-- [Approach](#approach)
 - [Quickstart](#quickstart)
+- [Approach](#approach)
 - [Plugin Development](#plugin-development)
   - [Automated Tests](#automated-tests)
 
@@ -30,6 +30,26 @@ This plugin hopes to provide a deployment option for `django-simple-deploy` that
 doesn't require a credit card to get started. PythonAnywhere offers a free tier
 that allows users to deploy small Django apps and may be a helpful way to get
 small Django apps online without financial commitment.
+
+## Quickstart
+
+Deployment to [PythonAnywhere](https://www.pythonanywhere.com/) with this plugin
+requires a few prerequisites:
+
+- You must use Git to track your project and push your code to a remote
+  repository (e.g. GitHub, GitLab, Bitbucket).
+- You must track dependencies with a `requirements.txt` file.
+- Create a PythonAnywhere [Beginner account](https://www.pythonanywhere.com/registration/register/beginner/),
+  which is a limited account with one web app, but requires no credit card.
+- Generate an [API token](https://help.pythonanywhere.com/pages/GettingYourAPIToken)
+- Ideally, stay logged in to PythonAnywhere in your default browser to make the
+  deployment smoother.
+
+With those prerequisites met, you can install the plugin and deploy your app:
+
+```sh
+# TBD
+```
 
 ## Approach
 
@@ -66,20 +86,6 @@ sequenceDiagram
 
 **Note:** Users should stay logged into PythonAnywhere in their default browser
 during deployment, as the console API may need to start a new console session.
-
-## Quickstart
-
-Deployment to [PythonAnywhere](https://www.pythonanywhere.com/) with this plugin
-requires a few prerequisites:
-
-- You must use Git to track your project and push your code to a remote
-  repository (e.g. GitHub, GitLab, Bitbucket).
-- You must track dependencies with a `requirements.txt` file.
-- Create a PythonAnywhere [Beginner account](https://www.pythonanywhere.com/registration/register/beginner/),
-  which is a limited account with one web app, but requires no credit card.
-- Generate an [API token](https://help.pythonanywhere.com/pages/GettingYourAPIToken)
-- Ideally, stay logged in to PythonAnywhere in your default browser to make the
-  deployment smoother.
 
 ## Plugin Development
 
