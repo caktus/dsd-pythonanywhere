@@ -1,6 +1,15 @@
 <!-- omit in toc -->
 # dsd-pythonanywhere
 
+<div style="display: flex; gap: 10px; align-items: center; margin-bottom: 1em;">
+  <a target="_blank" href="https://github.com/caktus/dsd-pythonanywhere/blob/main/LICENSE" style="background:none">
+    <img src="https://img.shields.io/badge/License-BSD-blue.svg?label=license">
+  </a>
+  <a target="_blank" href="https://github.com/caktus/dsd-pythonanywhere/actions/workflows/tests.yaml" style="background:none">
+    <img src="https://github.com/caktus/dsd-pythonanywhere/actions/workflows/tests.yaml/badge.svg?branch=main">
+  </a>
+</div>
+
 A plugin for deploying Django projects to [PythonAnywhere](https://www.pythonanywhere.com/), using django-simple-deploy.
 
 For full documentation, see the documentation for [django-simple-deploy](https://django-simple-deploy.readthedocs.io/en/latest/).
