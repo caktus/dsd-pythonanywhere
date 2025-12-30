@@ -173,19 +173,24 @@ class PlatformDeployer:
         """Finish automating the push to PythonAnywhere.
 
         - Commit all changes.
-        - ...
+        - Push to remote repo.
+        - Run setup script on PythonAnywhere.
         """
         # Making this check here lets deploy() be cleaner.
         if not dsd_config.automate_all:
             return
 
         plugin_utils.commit_changes()
+        # Push to remote (GitHub, etc).
+        plugin_utils.write_output("  Pushing changes to remote repository...")
+        plugin_utils.run_quick_command("git push origin HEAD", check=True)
 
         # Push project.
         plugin_utils.write_output("  Deploying to PythonAnywhere...")
 
         # Should set self.deployed_url, which will be reported in the success message.
         self._clone_and_run_setup_script()
+        self.deployed_url = f"https://{self._get_deployed_project_name()}.pythonanywhere.com"
 
     def _show_success_message(self):
         """After a successful run, show a message about what to do next.

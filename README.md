@@ -107,6 +107,8 @@ and test them by running deployments from the sample project:
 python manage.py deploy
 # To reset your sample project to a clean state between tests
 python ./reset_project.py
+# (**CAUTION**) If using --automate-all, you may need to force push to reset the remote changes
+git push origin main --force
 ```
 
 9. (Optional) Forward local ports for script debugging on PythonAnywhere:

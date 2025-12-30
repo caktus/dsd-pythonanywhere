@@ -4,12 +4,11 @@
 
 from textwrap import dedent
 
-
 confirm_automate_all = """
 The --automate-all flag means django-simple-deploy will:
-- ...
 - Commit all changes to your project that are necessary for deployment.
-- Push these changes to PythonAnywhere.
+- Push these changes to your remote repository.
+- Deploy your project to PythonAnywhere using the PythonAnywhere bash console.
 - Open your deployed project in a new browser tab.
 """
 
