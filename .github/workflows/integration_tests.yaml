@@ -21,14 +21,25 @@ jobs:
       - name: Install uv and set the Python version
         uses: astral-sh/setup-uv@v7
         with:
-          python-version: "3.14"
+          python-version: "3.12"
       - name: Install dependencies
         run: |
           cd django-simple-deploy/
           uv venv
           uv pip install -e ".[dev]"
-          uv add --editable "../dsd-pythonanywhere[dev]"
+          uv pip install -e "../dsd-pythonanywhere[dev]"
+      - name: Configure Git
+        run: |
+          git config --global user.email "ci_tester@example.com"
+          git config --global user.name "Ci Tester"
+          git config --global init.defaultBranch main
+      - name: Run unit tests
+        run: |
+          cd django-simple-deploy/
+          source .venv/bin/activate
+          pytest ../dsd-pythonanywhere/tests/unit_tests -x
       - name: Run integration tests
         run: |
           cd django-simple-deploy/
-          uv run pytest -x
+          source .venv/bin/activate
+          pytest ../dsd-pythonanywhere/tests/integration_tests -x
