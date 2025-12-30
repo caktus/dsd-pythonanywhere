@@ -86,6 +86,7 @@ class PlatformDeployer:
         # Configure project for deployment to PythonAnywhere
         self._add_requirements()
         self._modify_settings()
+        self._modify_wsgi()
         self._modify_gitignore()
 
         self._conclude_automate_all()
@@ -124,6 +125,11 @@ class PlatformDeployer:
     def _get_deployed_project_name(self):
         return os.getenv("API_USER")
 
+    def _get_repo_name(self) -> str:
+        """Get the repository name from the git remote URL."""
+        origin_url = self._get_origin_url()
+        return Path(origin_url).stem
+
     def _prep_automate_all(self):
         """Take any further actions needed if using automate_all."""
         pass
@@ -133,7 +139,7 @@ class PlatformDeployer:
         # Proof of concept to run script remotely on Python Anywhere
         cmd = [f"curl -fsSL {REMOTE_SETUP_SCRIPT_URL} | bash -s --"]
         origin_url = self._get_origin_url()
-        repo_name = Path(origin_url).stem
+        repo_name = self._get_repo_name()
         cmd.append(f"{origin_url} {repo_name}")
         cmd = " ".join(cmd)
         plugin_utils.write_output(f"  Cloning and running setup script: {cmd}")
@@ -151,6 +157,18 @@ class PlatformDeployer:
         template_path = self.templates_path / "settings.py"
         context = {"deployed_project_name": self._get_deployed_project_name()}
         plugin_utils.modify_settings_file(template_path, context)
+
+    def _modify_wsgi(self):
+        """Modify wsgi.py for PythonAnywhere deployment."""
+        plugin_utils.write_output("  Modifying wsgi.py for PythonAnywhere...")
+        template_path = self.templates_path / "wsgi.py"
+        context = {
+            "django_project_name": dsd_config.local_project_name,
+            "repo_name": self._get_repo_name(),
+        }
+        contents = plugin_utils.get_template_string(template_path, context)
+        path = dsd_config.project_root / dsd_config.local_project_name / "wsgi.py"
+        plugin_utils.add_file(path, contents)
 
     def _modify_gitignore(self) -> None:
         """Ensure .gitignore ignores deployment files."""
