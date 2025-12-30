@@ -9,18 +9,25 @@ jobs:
   tests:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - name: Checkout dsd-pythonanywhere
+        uses: actions/checkout@v6
+        with:
+          path: dsd-pythonanywhere
+      - name: Checkout django-simple-deploy
+        uses: actions/checkout@v6
+        with:
+          repository: django-simple-deploy/django-simple-deploy
+          path: django-simple-deploy
       - name: Install uv and set the Python version
         uses: astral-sh/setup-uv@v7
         with:
           python-version: "3.14"
-      - name: Clone django-simple-deploy parent project and install dependencies
+      - name: Install dependencies
         run: |
-          git clone https://github.com/django-simple-deploy/django-simple-deploy.git
           cd django-simple-deploy/
           uv venv
           uv pip install -e ".[dev]"
-          uv add --editable "../[dev]"
+          uv add --editable "../dsd-pythonanywhere[dev]"
       - name: Run integration tests
         run: |
           cd django-simple-deploy/
