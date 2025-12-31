@@ -49,13 +49,18 @@ from pathlib import Path
 from django_simple_deploy.management.commands.utils import plugin_utils
 from django_simple_deploy.management.commands.utils.plugin_utils import dsd_config
 
-from dsd_pythonanywhere.client import APIClient
+from dsd_pythonanywhere.client import PythonAnywhereClient
 
 from . import deploy_messages as platform_msgs
 
 REMOTE_SETUP_SCRIPT_URL = os.getenv(
     "REMOTE_SETUP_SCRIPT_URL",
     "https://raw.githubusercontent.com/caktus/dsd-pythonanywhere/refs/heads/main/scripts/setup.sh",
+)
+PLUGIN_REQUIREMENTS = (
+    "dsd-pythonanywhere @ git+https://github.com/caktus/dsd-pythonanywhere@main",
+    "python-dotenv",
+    "dj-database-url",
 )
 
 
@@ -68,6 +73,8 @@ class PlatformDeployer:
 
     def __init__(self):
         self.templates_path = Path(__file__).parent / "templates"
+        self.api_user = os.getenv("API_USER")
+        self.client = PythonAnywhereClient(username=self.api_user)
 
     # --- Public methods ---
 
@@ -79,8 +86,10 @@ class PlatformDeployer:
         self._prep_automate_all()
 
         # Configure project for deployment to PythonAnywhere
-        self._clone_and_run_setup_script()
         self._add_requirements()
+        self._modify_settings()
+        self._modify_wsgi()
+        self._modify_gitignore()
 
         self._conclude_automate_all()
         self._show_success_message()
@@ -98,7 +107,7 @@ class PlatformDeployer:
         pass
 
     def _get_origin_url(self) -> str:
-        """"""
+        """Get the git remote origin URL."""
         origin_url = (
             plugin_utils.run_quick_command("git config --get remote.origin.url", check=True)
             .stdout.decode()
@@ -116,51 +125,130 @@ class PlatformDeployer:
         return https_url
 
     def _get_deployed_project_name(self):
-        return os.getenv("API_USER")
+        return self.api_user
+
+    def _get_repo_name(self) -> str:
+        """Get the repository name from the git remote URL.
+
+        Falls back to the project root directory name if no remote is configured.
+        """
+        try:
+            origin_url = self._get_origin_url()
+            return Path(origin_url).stem
+        except Exception:
+            # No remote configured, use project directory name
+            return dsd_config.project_root.name
 
     def _prep_automate_all(self):
         """Take any further actions needed if using automate_all."""
         pass
 
-    def _clone_and_run_setup_script(self):
-        client = APIClient(username=os.getenv("API_USER"))
-        # Proof of concept to run script remotely on Python Anywhere
+    def _clone_and_run_setup_script(self, repo_name: str):
+        # Run the setup script to clone repo and install dependencies
         cmd = [f"curl -fsSL {REMOTE_SETUP_SCRIPT_URL} | bash -s --"]
         origin_url = self._get_origin_url()
-        repo_name = Path(origin_url).stem
-        cmd.append(f"{origin_url} {repo_name}")
+        django_project_name = dsd_config.local_project_name
+        cmd.append(f"{origin_url} {repo_name} {django_project_name}")
         cmd = " ".join(cmd)
         plugin_utils.write_output(f"  Cloning and running setup script: {cmd}")
-        client.run_command(cmd)
+        self.client.run_command(cmd)
         plugin_utils.write_output("Done cloning and running setup script.")
+
+    def _copy_wsgi_file(self, repo_name: str):
+        """Copy wsgi.py to PythonAnywhere's wsgi location.
+
+        This must be done after webapp creation, as creating a webapp
+        overwrites the wsgi file.
+        """
+        plugin_utils.write_output("  Copying wsgi.py to PythonAnywhere...")
+
+        django_project_name = dsd_config.local_project_name
+        domain = f"{self.client.username}.pythonanywhere.com"
+        wsgi_dest = f"/var/www/{domain.replace('.', '_')}_wsgi.py"
+        wsgi_src = f"{repo_name}/{django_project_name}/wsgi.py"
+
+        cmd = f"cp {wsgi_src} {wsgi_dest}"
+        self.client.run_command(cmd)
+        plugin_utils.write_output(f"  Copied {wsgi_src} to {wsgi_dest}")
+
+    def _create_webapp(self, repo_name: str):
+        """Create the webapp on PythonAnywhere."""
+        plugin_utils.write_output("  Creating webapp on PythonAnywhere...")
+        # Paths on PythonAnywhere (remote home directory)
+        remote_home = Path(f"/home/{self.client.username}")
+        project_path = remote_home / repo_name
+        virtualenv_path = remote_home / "venv"
+        self.client.create_or_update_webapp(
+            python_version="3.13",
+            virtualenv_path=virtualenv_path,
+            project_path=project_path,
+        )
+        plugin_utils.write_output("Webapp created and configured.")
 
     def _add_requirements(self):
         """Add requirements for deploying to PythonAnywhere."""
         plugin_utils.write_output("  Adding deploy requirements...")
-        requirements = (
-            "gunicorn",
-            "dj-database-url",
-            "dsd-pythonanywhere @ git+https://github.com/caktus/dsd-pythonanywhere@main",
-        )
-        plugin_utils.add_packages(requirements)
+        plugin_utils.add_packages(PLUGIN_REQUIREMENTS)
+
+    def _modify_settings(self):
+        """Add platformsh-specific settings."""
+        plugin_utils.write_output("  Modifying settings.py for PythonAnywhere...")
+        template_path = self.templates_path / "settings.py"
+        context = {"deployed_project_name": self._get_deployed_project_name()}
+        plugin_utils.modify_settings_file(template_path, context)
+
+    def _modify_wsgi(self):
+        """Modify wsgi.py for PythonAnywhere deployment."""
+        plugin_utils.write_output("  Modifying wsgi.py for PythonAnywhere...")
+        template_path = self.templates_path / "wsgi.py"
+        context = {
+            "django_project_name": dsd_config.local_project_name,
+            "repo_name": self._get_repo_name(),
+        }
+        contents = plugin_utils.get_template_string(template_path, context)
+        path = dsd_config.project_root / dsd_config.local_project_name / "wsgi.py"
+        plugin_utils.add_file(path, contents)
+
+    def _modify_gitignore(self) -> None:
+        """Ensure .gitignore ignores deployment files."""
+        patterns = [".env"]
+        gitignore_path = dsd_config.git_path / ".gitignore"
+        if not gitignore_path.exists():
+            # Make the .gitignore file with patterns.
+            gitignore_path.write_text("\n".join(patterns), encoding="utf-8")
+            plugin_utils.write_output("No .gitignore file found; created .gitignore.")
+            plugin_utils.write_output("Added .env to .gitignore.")
+        else:
+            # Append patterns to .gitignore if not already there.
+            contents = gitignore_path.read_text()
+            patterns_to_add = "".join([pattern for pattern in patterns if pattern not in contents])
+            contents += f"\n{patterns_to_add}"
+            gitignore_path.write_text(contents)
+            plugin_utils.write_output(f"Added {patterns_to_add} to .gitignore")
 
     def _conclude_automate_all(self):
         """Finish automating the push to PythonAnywhere.
 
         - Commit all changes.
-        - ...
+        - Push to remote repo.
+        - Run setup script on PythonAnywhere.
         """
         # Making this check here lets deploy() be cleaner.
         if not dsd_config.automate_all:
             return
 
         plugin_utils.commit_changes()
+        # Push to remote (GitHub, etc).
+        plugin_utils.write_output("  Pushing changes to remote repository...")
+        plugin_utils.run_quick_command("git push origin HEAD", check=True)
 
         # Push project.
         plugin_utils.write_output("  Deploying to PythonAnywhere...")
-
-        # Should set self.deployed_url, which will be reported in the success message.
-        pass
+        repo_name = self._get_repo_name()
+        self._clone_and_run_setup_script(repo_name=repo_name)
+        self._create_webapp(repo_name=repo_name)
+        self._copy_wsgi_file(repo_name=repo_name)
+        self.deployed_url = f"https://{self._get_deployed_project_name()}.pythonanywhere.com"
 
     def _show_success_message(self):
         """After a successful run, show a message about what to do next.

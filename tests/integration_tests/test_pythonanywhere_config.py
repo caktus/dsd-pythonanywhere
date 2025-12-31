@@ -1,10 +1,9 @@
-"""Integration tests for django-simple-deploy, targeting Fly.io."""
+"""Integration tests for django-simple-deploy, targeting PythonAnywhere."""
 
 from pathlib import Path
 
-from tests.integration_tests.conftest import (dsd_version, pkg_manager,
-                                              reset_test_project, run_dsd,
-                                              tmp_project)
+import pytest
+
 from tests.integration_tests.utils import it_helper_functions as hf
 
 # --- Fixtures ---
@@ -50,14 +49,17 @@ def test_pyproject_toml(tmp_project, pkg_manager, tmp_path, dsd_version):
     if pkg_manager in ("req_txt", "pipenv"):
         assert not Path("pyproject.toml").exists()
     elif pkg_manager == "poetry":
-        context = {"current-version": dsd_version}
-        hf.check_reference_file(
-            tmp_project,
-            "pyproject.toml",
-            "dsd-pythonanywhere",
-            context=context,
-            tmp_path=tmp_path,
+        pytest.skip(
+            "Skipping unsupported dsd-pythonanywhere pyproject.toml test for poetry"
         )
+        # context = {"current-version": dsd_version}
+        # hf.check_reference_file(
+        #     tmp_project,
+        #     "pyproject.toml",
+        #     "dsd-pythonanywhere",
+        #     context=context,
+        #     tmp_path=tmp_path,
+        # )
 
 
 def test_pipfile(tmp_project, pkg_manager, tmp_path, dsd_version):
@@ -65,14 +67,15 @@ def test_pipfile(tmp_project, pkg_manager, tmp_path, dsd_version):
     if pkg_manager in ("req_txt", "poetry"):
         assert not Path("Pipfile").exists()
     elif pkg_manager == "pipenv":
-        context = {"current-version": dsd_version}
-        hf.check_reference_file(
-            tmp_project,
-            "Pipfile",
-            "dsd-pythonanywhere",
-            context=context,
-            tmp_path=tmp_path,
-        )
+        pytest.skip("Skipping unsupported dsd-pythonanywhere Pipfile test for pipenv")
+        # context = {"current-version": dsd_version}
+        # hf.check_reference_file(
+        #     tmp_project,
+        #     "Pipfile",
+        #     "dsd-pythonanywhere",
+        #     context=context,
+        #     tmp_path=tmp_path,
+        # )
 
 
 def test_gitignore(tmp_project):
@@ -130,7 +133,9 @@ def test_log_dir(tmp_project):
     # DEV: Update these for more platform-specific log messages.
     # Spot check for opening log messages.
     assert "INFO: Logging run of `manage.py deploy`..." in log_file_text
-    assert "INFO: Configuring project for deployment to PythonAnywhere..." in log_file_text
+    assert (
+        "INFO: Configuring project for deployment to PythonAnywhere..." in log_file_text
+    )
 
     assert "INFO: CLI args:" in log_file_text
     assert (

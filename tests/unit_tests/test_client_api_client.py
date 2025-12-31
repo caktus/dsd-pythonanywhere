@@ -1,20 +1,20 @@
 import pytest
 import requests
 
-from dsd_pythonanywhere.client import APIClient
+from dsd_pythonanywhere.client import PythonAnywhereClient
 
 
 @pytest.fixture
 def api_client(mocker):
     """APIClient instance with mocked environment."""
     mocker.patch.dict("os.environ", {"API_TOKEN": "test_token_12345"})
-    return APIClient(username="testuser")
+    return PythonAnywhereClient(username="testuser")
 
 
 def test_api_client_init(mocker):
     """APIClient initializes with username and token from environment."""
     mocker.patch.dict("os.environ", {"API_TOKEN": "my_secret_token"})
-    client = APIClient(username="myuser")
+    client = PythonAnywhereClient(username="myuser")
 
     assert client.username == "myuser"
     assert client.token == "my_secret_token"
@@ -34,7 +34,7 @@ def test_hostname_custom_domain(mocker):
         "os.environ",
         {"API_TOKEN": "token", "PYTHONANYWHERE_DOMAIN": "pythonanywhere.eu"},
     )
-    client = APIClient(username="testuser")
+    client = PythonAnywhereClient(username="testuser")
     assert client._hostname == "www.pythonanywhere.eu"
 
 

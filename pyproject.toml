@@ -9,7 +9,7 @@ description = "A plugin for django-simple-deploy, supporting deployments to Pyth
 readme = "README.md"
 
 authors = [
-    {name = "Eric Matthes", email = "ehmatthes@gmail.com" },
+    {name = "Caktus Consulting Group", email = "solutions@caktusgroup.com" },
 ]
 
 classifiers = [
@@ -46,6 +46,7 @@ dependencies = [
 dev = [
     "build>=1.2.1",
     "pytest>=8.3.0",
+    "pytest-mock>=3.15.1",
     "twine>=5.1.1",
 ]
 
@@ -63,7 +64,7 @@ include-package-data = true
 
 [tool.ruff]
 line-length = 100
-exclude = ["dsd_pythonanywhere/templates/settings.py", "tests/integration_tests/test_pythonanywhere_config.py"]
+exclude = ["dsd_pythonanywhere/templates/settings.py"]
 
 [dependency-groups]
 dev = [

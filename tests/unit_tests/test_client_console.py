@@ -1,13 +1,13 @@
 import pytest
 
-from dsd_pythonanywhere.client import APIClient, CommandResult, CommandRun, Console
+from dsd_pythonanywhere.client import CommandResult, CommandRun, Console, PythonAnywhereClient
 
 
 @pytest.fixture
 def mock_api_client(mocker):
     """APIClient instance with mocked request method."""
     mocker.patch.dict("os.environ", {"API_TOKEN": "test_token_12345"})
-    client = APIClient(username="testuser")
+    client = PythonAnywhereClient(username="testuser")
     mocker.patch.object(client, "request")
     return client
 

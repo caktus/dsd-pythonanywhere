@@ -9,3 +9,6 @@ sqlparse==0.5.2
 urllib3==2.2.3
 
 django-simple-deploy=={current-version}
+dsd-pythonanywhere @ git+https://github.com/caktus/dsd-pythonanywhere@main
+python-dotenv
+dj-database-url

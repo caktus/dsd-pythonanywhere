@@ -1,20 +1,34 @@
+<!-- omit in toc -->
 # dsd-pythonanywhere
+
+<div align="center">
+  <a target="_blank" href="https://github.com/caktus/dsd-pythonanywhere/blob/main/LICENSE" style="background:none">
+    <img src="https://img.shields.io/badge/License-BSD-blue.svg?label=license">
+  </a>
+  <a target="_blank" href="https://github.com/caktus/dsd-pythonanywhere/actions/workflows/tests.yaml" style="background:none">
+    <img src="https://github.com/caktus/dsd-pythonanywhere/actions/workflows/tests.yaml/badge.svg?branch=main">
+  </a>
+</div>
 
 A plugin for deploying Django projects to [PythonAnywhere](https://www.pythonanywhere.com/), using django-simple-deploy.
 
 For full documentation, see the documentation for [django-simple-deploy](https://django-simple-deploy.readthedocs.io/en/latest/).
 
-**Current status:** In active development. The plugin currently clones your
-repository to PythonAnywhere, but it doesn't configure the web app just yet. Not
-yet recommended for actual deployments yet.
+**Current status:** In active development. Not yet recommended for actual
+deployments yet.
+
+- [Motivation](#motivation)
+- [Quickstart](#quickstart)
+- [Approach](#approach)
+- [Plugin Development](#plugin-development)
+  - [Automated Tests](#automated-tests)
 
 ## Motivation
 
-This plugin is motivated by the desire to provide a deployment option for
-`django-simple-deploy` that doesn't require a credit card to get started.
-PythonAnywhere offers a free tier that allows users to deploy small Django apps
-and may be a helpful way to get small Django apps online without financial
-commitment.
+This plugin hopes to provide a deployment option for `django-simple-deploy` that
+doesn't require a credit card to get started. PythonAnywhere offers a free tier
+that allows users to deploy small Django apps and may be a helpful way to get
+small Django apps online without financial commitment.
 
 ## Quickstart
 
@@ -28,12 +42,60 @@ requires a few prerequisites:
   which is a limited account with one web app, but requires no credit card.
 - Generate an [API token](https://help.pythonanywhere.com/pages/GettingYourAPIToken)
 - Ideally, stay logged in to PythonAnywhere in your default browser to make the
-  first deployment smoother.
+  deployment smoother.
+
+With those prerequisites met, you can install the plugin and deploy your app:
+
+```sh
+# TBD
+```
+
+## Approach
+
+PythonAnywhere provides a
+[`pa_autoconfigure_django.py`](https://github.com/pythonanywhere/helper_scripts/blob/master/scripts/pa_autoconfigure_django.py)
+helper script, currently used in the [Django Girls
+tutorial](https://tutorial.djangogirls.org/en/deploy/). However, it's designed
+to run directly on PythonAnywhere, which presents challenges: using a web-based
+console, changes not being committed/pushed to version control, etc.
+
+This plugin integrates with `django-simple-deploy` to provide a more familiar
+local workflow, though with some caveats due to free tier limitations (primarily
+lack of SSH access).
+
+```mermaid
+sequenceDiagram
+    participant User as Local Machine
+    participant GitHub
+    participant PA as PythonAnywhere
+
+    User->>GitHub: Commit & push changes
+
+    User->>PA: Bash Console API: clone repo
+    PA->>GitHub: git clone
+    PA->>PA: Install dependencies & create .env
+
+    User->>PA: Webapp API: create webapp
+    User->>PA: Bash Console API: copy wsgi.py
+
+    PA-->>User: 🎉 App deployed!
+```
+
+**Note:** Users should stay logged into PythonAnywhere in their default browser
+during deployment, as the console API may need to start a new console session.
 
 ## Plugin Development
 
 To set up a development environment for working on this plugin alongside
-`django-simple-deploy`, follow these steps.
+`django-simple-deploy`, follow these steps. This will create a directory
+structure that looks like this:
+
+```sh
+dsd-dev/
+├── django-simple-deploy             # ← parent project needed to run integration tests
+├── dsd-pythonanywhere               # ← our plugin development directory
+└── dsd-dev-project_[random_string]  # ← sample project for testing deployments
+```
 
 1. Create a parent directory to hold your development work:
 
@@ -54,7 +116,7 @@ git clone git@github.com:caktus/dsd-pythonanywhere.git
 ```sh
 git clone git@github.com:django-simple-deploy/django-simple-deploy.git
 cd django-simple-deploy/
-# Builds a copy of the sample project in parent dir for testing (../dsd-dev-project-[random_string]/)
+# Builds a copy of the sample project in parent dir for testing (../dsd-dev-project_[random_string]/)
 uv run python tests/e2e_tests/utils/build_dev_env.py
 ```
 
@@ -62,10 +124,18 @@ uv run python tests/e2e_tests/utils/build_dev_env.py
 
 ```sh
 cd ../
-cd dsd-dev-project-[random_string]/
+cd dsd-dev-project_[random_string]/
 source .venv/bin/activate
 # Install dsd-pythonanywhere plugin in editable mode
 pip install -e "../dsd-pythonanywhere/[dev]"
+```
+
+Your development environment is now configured to use your local copy of
+`django-simple-deploy` and the `dsd-pythonanywhere` plugin in editable mode.
+Verify with:
+
+```sh
+pip show django_simple_deploy dsd_pythonanywhere | grep Editable
 ```
 
 5. Create a [new public repository on GitHub](https://github.com/new).
@@ -85,9 +155,68 @@ export API_USER=[your_pythonanywhere_username]
 export API_TOKEN=[your_pythonanywhere_api_token]
 ```
 
+If desired, you can add these lines to a `.env` file in the parent directory to
+more easily load them when working on the project:
+
+```sh
+source ../.env
+```
+
 8. You can now make changes to `dsd-pythonanywhere` in the cloned directory
 and test them by running deployments from the sample project:
 
 ```sh
 python manage.py deploy
+# To reset your sample project to a clean state between tests
+python ./reset_project.py
+# (**CAUTION**) If using --automate-all, you may need to force push to reset the remote changes
+git push origin main --force
+```
+
+9. (Optional) Forward local ports for script debugging on PythonAnywhere:
+
+To debug `scripts/setup.sh` that's run on PythonAnywhere during deployment, you
+can use a service like [ngrok](https://ngrok.com/) to expose your local
+`dsd_pythonanywhere` development code to the remote environment. First, start ngrok to
+forward a local port (e.g., `8000`):
+
+```sh
+# In a new terminal
+ngrok http 8000 --url https://<your_ngrok_subdomain>.ngrok-free.app
+```
+
+Then run a local HTTP server to serve your `dsd_pythonanywhere` code:
+
+```sh
+# In another terminal in the dsd-pythonanywhere directory
+uv run python -m http.server 8000
+```
+
+Finally, set the `REMOTE_SETUP_SCRIPT_URL` environment variable
+in your sample project to point to the ngrok URL for `scripts/setup.sh`:
+
+```sh
+export REMOTE_SETUP_SCRIPT_URL="https://<your_ngrok_subdomain>.ngrok-free.app/scripts/setup.sh"
+```
+
+### Automated Tests
+
+To run the unit tests for this plugin, run:
+
+```sh
+cd dsd-pythonanywhere/
+uv run pytest
+```
+
+To run the integration tests (and unit tests), which exercise the mechanics of
+`python manage.py deploy` locally without actually deploying to PythonAnywhere,
+run:
+
+```sh
+cd django-simple-deploy/
+# Install dsd-pythonanywhere plugin in editable mode
+uv add --editable "../dsd-pythonanywhere[dev]"
+uv run pytest
+# To skip platform_agnostic_tests for faster feedback during plugin development:
+uv run pytest --ignore=tests/integration_tests/platform_agnostic_tests
 ```
