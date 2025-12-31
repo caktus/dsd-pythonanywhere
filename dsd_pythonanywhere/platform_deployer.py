@@ -47,6 +47,7 @@ import os
 from pathlib import Path
 
 from django_simple_deploy.management.commands.utils import plugin_utils
+from django_simple_deploy.management.commands.utils.command_errors import DSDCommandError
 from django_simple_deploy.management.commands.utils.plugin_utils import dsd_config
 
 from dsd_pythonanywhere.client import PythonAnywhereClient
@@ -104,7 +105,27 @@ class PlatformDeployer:
         Raises:
             DSDCommandError: If we find any reason deployment won't work.
         """
-        pass
+        # Check for required environment variables
+        if not os.getenv("API_USER"):
+            raise DSDCommandError(
+                "API_USER environment variable is not set. "
+                "Please set it to your PythonAnywhere username."
+            )
+
+        if not os.getenv("API_TOKEN"):
+            raise DSDCommandError(
+                "API_TOKEN environment variable is not set. "
+                "Please set it to your PythonAnywhere API token."
+            )
+
+        # Test API connection
+        try:
+            self.client.request(method="GET", url=self.client._base_url("cpu"))
+        except Exception as e:
+            raise DSDCommandError(
+                f"Failed to connect to PythonAnywhere API: {e}. "
+                "Please verify your API_USER and API_TOKEN are correct."
+            )
 
     def _get_origin_url(self) -> str:
         """Get the git remote origin URL."""
