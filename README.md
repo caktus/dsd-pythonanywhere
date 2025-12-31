@@ -41,13 +41,53 @@ requires a few prerequisites:
 - Create a PythonAnywhere [Beginner account](https://www.pythonanywhere.com/registration/register/beginner/),
   which is a limited account with one web app, but requires no credit card.
 - Generate an [API token](https://help.pythonanywhere.com/pages/GettingYourAPIToken)
-- Ideally, stay logged in to PythonAnywhere in your default browser to make the
-  deployment smoother.
+- Stay logged in to PythonAnywhere in your default browser.
 
-With those prerequisites met, you can install the plugin and deploy your app:
+With those prerequisites met, and if you're coming from the [Django Girls tutorial Deploy section](https://tutorial.djangogirls.org/en/deploy/),
+you can deploy your project with the following steps:
+
+1. Export your PythonAnywhere API credentials and install `dsd-pythonanywhere`:
 
 ```sh
-# TBD
+# Export your PythonAnywhere API credentials as environment variables
+export API_USER=[your_pythonanywhere_username]
+export API_TOKEN=[your_pythonanywhere_api_token]
+# Install dsd-pythonanywhere (which also installs django-simple-deploy)
+pip install git+https://github.com/caktus/dsd-pythonanywhere.git@main
+```
+
+2. Add `django-simple-deploy` to your `INSTALLED_APPS` in `settings.py`:
+
+```diff
+diff --git a/mysite/settings.py b/mysite/settings.py
+index 8bf8f39..b288aa1 100644
+--- a/mysite/settings.py
++++ b/mysite/settings.py
+@@ -38,6 +38,7 @@ INSTALLED_APPS = [
+     "django.contrib.messages",
+     "django.contrib.staticfiles",
+     "blog",
++    "django_simple_deploy",
+ ]
+```
+
+3. Run the deployment command:
+
+```sh
+python manage.py deploy --automate-all
+```
+
+This command can take several minutes as it creates the web app, installs
+dependencies, etc. You should see progress in your browser console on
+PythonAnywhere as well.
+
+If you run into issues and need to re-run the deployment, you may need to
+reset your local and remote repositories to a clean state first:
+
+```sh
+# Stash any local changes
+git stash --include-untracked
+# Go back to step 2 since settings.py was reverted
 ```
 
 ## Approach
@@ -61,15 +101,20 @@ console, changes not being committed/pushed to version control, etc.
 
 This plugin integrates with `django-simple-deploy` to provide a more familiar
 local workflow, though with some caveats due to free tier limitations (primarily
-lack of SSH access).
+lack of SSH access and required browser interaction).
 
 ```mermaid
 sequenceDiagram
     participant User as Local Machine
+    participant Browser
     participant GitHub
     participant PA as PythonAnywhere
 
     User->>GitHub: Commit & push changes
+
+    User->>PA: Bash Console API: create console
+    User->>Browser: Open console URL
+    Note over Browser,PA: Browser connection starts bash process
 
     User->>PA: Bash Console API: clone repo
     PA->>GitHub: git clone
@@ -82,7 +127,15 @@ sequenceDiagram
 ```
 
 **Note:** Users should stay logged into PythonAnywhere in their default browser
-during deployment, as the console API may need to start a new console session.
+during deployment.
+
+Additionally:
+
+* If a PythonAnywhere bash console isn't already running, the plugin will
+programmatically open your browser to the console URL. This is required because
+the PythonAnywhere API creates console objects but doesn't start the actual
+process. Only connecting to the console in a browser will do that (per the [API
+documentation](https://help.pythonanywhere.com/pages/API/#apiv0userusernameconsoles)).
 
 ## Plugin Development
 
