@@ -96,8 +96,8 @@ def test_validate_platform_api_connection_fails(monkeypatch, mocker):
     monkeypatch.setenv("API_TOKEN", "test_token")
 
     deployer = PlatformDeployer()
-    mock_webapp_exists = mocker.patch.object(deployer.client, "webapp_exists")
-    mock_webapp_exists.side_effect = Exception("Connection failed")
+    mock_request = mocker.patch.object(deployer.client, "request")
+    mock_request.side_effect = Exception("Connection failed")
 
     with pytest.raises(DSDCommandError, match="Failed to connect to PythonAnywhere API"):
         deployer._validate_platform()
@@ -109,8 +109,10 @@ def test_validate_platform_success(monkeypatch, mocker):
     monkeypatch.setenv("API_TOKEN", "test_token")
 
     deployer = PlatformDeployer()
-    mock_webapp_exists = mocker.patch.object(deployer.client, "webapp_exists")
-    mock_webapp_exists.return_value = True
+    mock_request = mocker.patch.object(deployer.client, "request")
+    mock_response = mocker.Mock()
+    mock_response.ok = True
+    mock_request.return_value = mock_response
 
     # Should not raise any exception
     deployer._validate_platform()
