@@ -74,6 +74,7 @@ def test_validate_platform_missing_api_user(monkeypatch):
     """_validate_platform raises error when API_USER is missing."""
     monkeypatch.delenv("API_USER", raising=False)
     monkeypatch.setenv("API_TOKEN", "test_token")
+    monkeypatch.setattr(dsd_config, "automate_all", True)
 
     with pytest.raises(DSDCommandError, match="API_USER environment variable is not set"):
         deployer = PlatformDeployer()
@@ -84,6 +85,7 @@ def test_validate_platform_missing_api_token(monkeypatch):
     """_validate_platform raises error when API_TOKEN is missing."""
     monkeypatch.setenv("API_USER", "test_user")
     monkeypatch.delenv("API_TOKEN", raising=False)
+    monkeypatch.setattr(dsd_config, "automate_all", True)
 
     deployer = PlatformDeployer()
     with pytest.raises(DSDCommandError, match="API_TOKEN environment variable is not set"):
@@ -94,6 +96,7 @@ def test_validate_platform_api_connection_fails(monkeypatch, mocker):
     """_validate_platform raises error when API connection fails."""
     monkeypatch.setenv("API_USER", "test_user")
     monkeypatch.setenv("API_TOKEN", "test_token")
+    monkeypatch.setattr(dsd_config, "automate_all", True)
 
     deployer = PlatformDeployer()
     mock_request = mocker.patch.object(deployer.client, "request")
@@ -107,6 +110,7 @@ def test_validate_platform_success(monkeypatch, mocker):
     """_validate_platform succeeds with valid credentials."""
     monkeypatch.setenv("API_USER", "test_user")
     monkeypatch.setenv("API_TOKEN", "test_token")
+    monkeypatch.setattr(dsd_config, "automate_all", True)
 
     deployer = PlatformDeployer()
     mock_request = mocker.patch.object(deployer.client, "request")
@@ -115,4 +119,15 @@ def test_validate_platform_success(monkeypatch, mocker):
     mock_request.return_value = mock_response
 
     # Should not raise any exception
+    deployer._validate_platform()
+
+
+def test_validate_platform_skipped_without_automate_all(monkeypatch):
+    """_validate_platform is skipped when automate_all is False."""
+    monkeypatch.delenv("API_USER", raising=False)
+    monkeypatch.delenv("API_TOKEN", raising=False)
+    monkeypatch.setattr(dsd_config, "automate_all", False)
+
+    deployer = PlatformDeployer()
+    # Should not raise any exception even without credentials
     deployer._validate_platform()

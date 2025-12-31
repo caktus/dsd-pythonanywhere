@@ -105,6 +105,10 @@ class PlatformDeployer:
         Raises:
             DSDCommandError: If we find any reason deployment won't work.
         """
+        # Only validate API credentials when actually deploying
+        if not dsd_config.automate_all:
+            return
+
         # Check for required environment variables
         if not os.getenv("API_USER"):
             raise DSDCommandError(
