@@ -23,6 +23,6 @@ dsd-pythonahwyhere is a plugin for deploying Django projects to PythonAnywhere, 
 
 ### Code Quality
 
-- Run pre-commit hooks: `uv run pre-commit run --all-files`
+- Run pre-commit hooks: `uv run pre-commit run --all-files`. Always run this after making changes.
 - Format Python code with Ruff: `uv run ruff format .`
 - Lint and auto-fix Python code: `uv run ruff check --fix .`
