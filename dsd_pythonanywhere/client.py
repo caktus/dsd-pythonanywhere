@@ -44,7 +44,8 @@ class CommandRun:
     # Regex pattern to match empty prompts (command finished): "HH:MM ~ $ " (with optional whitespace)
     EMPTY_PROMPT_PATTERN = re.compile(r"\d{2}:\d{2} ~[^$]*\$\s*$")
     # Regex pattern to match ANSI escape codes for cleaning
-    ANSI_ESCAPE_PATTERN = re.compile(r"\x1b\[[0-9;]*m")
+    # Matches SGR sequences (\x1b[...m), bracketed paste mode (\x1b[?2004h/l), and other CSI sequences
+    ANSI_ESCAPE_PATTERN = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
 
     def __init__(self, raw_output: str):
         self.raw_output = raw_output

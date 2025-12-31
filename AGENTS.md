@@ -19,6 +19,7 @@ dsd-pythonahwyhere is a plugin for deploying Django projects to PythonAnywhere, 
 
 - Run tests with pytest: `uv run pytest`
 - Tests are located in the `tests/` directory and follow standard pytest and pytest-mock conventions.
+- New features and bug fixes should always include a concise test (not exhaustive).
 
 ### Code Quality
 
