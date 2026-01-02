@@ -89,3 +89,36 @@ def test_request_handles_errors(api_client, mocker):
 
     with pytest.raises(requests.exceptions.HTTPError):
         api_client.request(method="GET", url="https://example.com/api/test")
+
+
+def test_create_webapp_if_not_exists_creates_new(api_client, mocker):
+    """create_webapp_if_not_exists creates webapp and configures static files when it doesn't exist."""
+    mocker.patch.object(api_client, "webapp_exists", return_value=False)
+    mock_create = mocker.patch.object(api_client, "create_webapp")
+    mock_add_mappings = mocker.patch.object(api_client.webapp, "add_default_static_files_mappings")
+    project_path = "/home/testuser/project"
+
+    api_client.create_webapp_if_not_exists(
+        python_version="3.13",
+        virtualenv_path="/home/testuser/venv",
+        project_path=project_path,
+    )
+
+    mock_create.assert_called_once()
+    mock_add_mappings.assert_called_once()
+
+
+def test_create_webapp_if_not_exists_skips_existing(api_client, mocker):
+    """create_webapp_if_not_exists skips creation when webapp exists."""
+    mocker.patch.object(api_client, "webapp_exists", return_value=True)
+    mock_create = mocker.patch.object(api_client, "create_webapp")
+    mock_add_mappings = mocker.patch.object(api_client.webapp, "add_default_static_files_mappings")
+
+    api_client.create_webapp_if_not_exists(
+        python_version="3.13",
+        virtualenv_path="/home/testuser/venv",
+        project_path="/home/testuser/project",
+    )
+
+    mock_create.assert_not_called()
+    mock_add_mappings.assert_not_called()

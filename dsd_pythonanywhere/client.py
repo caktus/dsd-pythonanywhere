@@ -178,12 +178,22 @@ class Console:
 
             try:
                 command_run = self.get_latest_output()
-                if command_run and command_run.is_command_finished():
-                    # Command finished, extract output
-                    command_output = command_run.extract_command_output(expected_command)
-                    if command_output is not None:
-                        log_message(f"Command '{expected_command}' completed")
-                        return CommandResult(expected_command, command_output)
+                if command_run:
+                    # First check if our command appears in the output (was echoed back)
+                    command_visible = command_run.find_most_recent_prompt_line(
+                        expected_command=expected_command
+                    )
+                    if command_visible is None:
+                        log_message("Command not yet visible in output, waiting...")
+                        time.sleep(6)
+                        continue
+
+                    # Command is visible, now check if it finished (empty prompt after)
+                    if command_run.is_command_finished():
+                        command_output = command_run.extract_command_output(expected_command)
+                        if command_output is not None:
+                            log_message(f"Command '{expected_command}' completed")
+                            return CommandResult(expected_command, command_output)
 
             except Exception as e:
                 log_message(f"Error polling console output: {e}")
@@ -377,10 +387,10 @@ class PythonAnywhereClient:
     def create_webapp(
         self,
         python_version: str,
-        virtualenv_path: str | Path,
-        project_path: str | Path,
+        virtualenv_path: Path,
+        project_path: Path,
         nuke: bool = False,
-    ) -> dict:
+    ) -> None:
         """Create a new web app on PythonAnywhere.
 
         Args:
@@ -388,38 +398,21 @@ class PythonAnywhereClient:
             virtualenv_path: Path to the virtual environment
             project_path: Path to the Django project
             nuke: If True, delete existing webapp before creating
-
-        Returns:
-            The webapp configuration dict
         """
         log_message(f"Creating webapp for {self.domain_name}...")
         self.webapp.sanity_checks(nuke=nuke)
-        result = self.webapp.create(
+        self.webapp.create(
             python_version=python_version,
-            virtualenv_path=str(virtualenv_path),
-            project_path=str(project_path),
+            virtualenv_path=virtualenv_path,
+            project_path=project_path,
             nuke=nuke,
         )
         log_message(f"Webapp created: {self.domain_name}")
-        return result
 
-    def reload_webapp(self) -> None:
-        """Reload the web app to apply changes."""
-        log_message(f"Reloading webapp {self.domain_name}...")
-        self.webapp.reload()
-        log_message("Webapp reloaded successfully")
-
-    def create_or_update_webapp(
-        self,
-        python_version: str,
-        virtualenv_path: str | Path,
-        project_path: str | Path,
+    def create_webapp_if_not_exists(
+        self, python_version: str, virtualenv_path: Path, project_path: Path
     ) -> None:
-        """Create or update a webapp.
-
-        This is a convenience method that:
-        1. Creates the webapp if it doesn't exist
-        2. Reloads the webapp
+        """Create a webapp if it doesn't exist.
 
         Args:
             python_version: Python version (e.g., "3.13")
@@ -433,8 +426,14 @@ class PythonAnywhereClient:
                 project_path=project_path,
                 nuke=False,
             )
+            log_message("Configuring static file mappings...")
+            self.webapp.add_default_static_files_mappings(project_path=project_path)
+            log_message("Static file mappings configured")
         else:
             log_message(f"Webapp {self.domain_name} already exists, skipping creation")
 
-        # Always reload to apply changes
-        self.reload_webapp()
+    def reload_webapp(self) -> None:
+        """Reload the web app to apply changes."""
+        log_message(f"Reloading webapp {self.domain_name}...")
+        self.webapp.reload()
+        log_message("Webapp reloaded successfully")

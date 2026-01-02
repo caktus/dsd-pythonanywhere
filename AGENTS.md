@@ -19,6 +19,8 @@ dsd-pythonanywhere is a plugin for deploying Django projects to PythonAnywhere, 
 
 - Run tests with pytest: `uv run pytest`
 - Tests are located in the `tests/` directory and follow standard pytest and pytest-mock conventions.
+- Integration tests (in `dsd-pythonanywhere/tests/integration_tests`) must be run from the `django-simple-deploy` project root. See `.github/workflows/integration_tests.yaml` for test setup details.
+- Use `-k` to filter tests by name pattern, e.g., `uv run pytest -k "test_setup_script"` to run only setup script tests.
 - Add or update tests for the code you change, even if nobody asked.
 - New features and bug fixes should always include a concise test (not exhaustive).
 - Always run full test suite and ruff pre-commit hooks as the last tasks in your todo list
