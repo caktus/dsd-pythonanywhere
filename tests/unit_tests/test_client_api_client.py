@@ -1,3 +1,5 @@
+import os
+
 import pytest
 import requests
 
@@ -20,6 +22,15 @@ def test_api_client_init(mocker):
     assert client.token == "my_secret_token"
     assert "Authorization" in client.session.headers
     assert client.session.headers["Authorization"] == "Token my_secret_token"
+
+
+def test_logname_set_when_different(mocker):
+    """__init__ sets LOGNAME environment variable when different from username."""
+    mocker.patch.dict("os.environ", {"API_TOKEN": "test_token", "LOGNAME": "original_user"})
+    client = PythonAnywhereClient(username="myuser")
+
+    assert client.username == "myuser"
+    assert os.getenv("LOGNAME") == "myuser"
 
 
 def test_hostname_default(api_client, mocker):

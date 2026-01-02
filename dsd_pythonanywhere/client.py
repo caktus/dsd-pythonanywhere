@@ -270,7 +270,10 @@ class PythonAnywhereClient:
 
         # Initialize webapp for this user's domain
         self.domain_name = f"{username}.{self._pythonanywhere_domain}"
-        self.webapp = Webapp(self.domain_name)
+        self.webapp = Webapp(domain=self.domain_name)
+        # Prevent mismatch of PythonAnywhere username and the users's login
+        if self.username and self.username != os.getenv("LOGNAME"):
+            os.environ["LOGNAME"] = username
 
     @property
     def _pythonanywhere_domain(self) -> str:
