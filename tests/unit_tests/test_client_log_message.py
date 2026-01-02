@@ -15,4 +15,4 @@ def test_writes_to_plugin_utils_when_stdout_exists(mocker):
     mock_plugin_utils = mocker.patch("dsd_pythonanywhere.client.plugin_utils")
     mock_plugin_utils.dsd_config.stdout = mocker.MagicMock()
     log_message("Test output")
-    mock_plugin_utils.write_output.assert_called_once_with("Test output")
+    mock_plugin_utils.write_output.assert_called_once_with("  Test output")

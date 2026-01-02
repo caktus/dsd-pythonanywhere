@@ -33,6 +33,23 @@ def test_logname_set_when_different(mocker):
     assert os.getenv("LOGNAME") == "myuser"
 
 
+def test_logname_set_before_webapp_import(mocker):
+    """LOGNAME is set before Webapp import so class variables use correct username."""
+    # Mock getpass.getuser to return the current LOGNAME value
+    # This simulates what pythonanywhere_core.webapp.Webapp does at import time
+    mocker.patch.dict("os.environ", {"API_TOKEN": "test_token", "LOGNAME": "original_user"})
+    mocker.patch(
+        "pythonanywhere_core.webapp.getpass.getuser",
+        side_effect=lambda: os.getenv("LOGNAME", "original_user"),
+    )
+
+    # Create client with different username - this should update LOGNAME before import
+    client = PythonAnywhereClient(username="deployment_user")
+    assert os.getenv("LOGNAME") == "deployment_user"
+    assert client.webapp.username == "deployment_user"
+    assert client.webapp.domain == "deployment_user.pythonanywhere.com"
+
+
 def test_hostname_default(api_client, mocker):
     """_hostname returns default PythonAnywhere domain."""
     mocker.patch.dict("os.environ", {}, clear=True)

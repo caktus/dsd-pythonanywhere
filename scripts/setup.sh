@@ -49,7 +49,7 @@ if [ ! -f "$REPO_NAME/.env" ]; then
 DEBUG=TRUE
 ON_PYTHONANYWHERE=TRUE
 SECRET_KEY=$DJANGO_SECRET_KEY
-DATABASE_URL=sqlite:///$REPO_NAME/db.sqlite3
+DATABASE_URL=sqlite:///$HOME/$REPO_NAME/db.sqlite3
 EOF
 	echo ".env file created."
 else

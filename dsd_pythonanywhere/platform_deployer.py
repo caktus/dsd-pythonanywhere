@@ -271,11 +271,11 @@ class PlatformDeployer:
 
         plugin_utils.commit_changes()
         # Push to remote (GitHub, etc).
-        plugin_utils.write_output("  Pushing changes to remote repository...")
+        plugin_utils.write_output("Pushing changes to remote repository...")
         plugin_utils.run_quick_command("git push origin HEAD", check=True)
 
         # Deploy project.
-        plugin_utils.write_output("  Deploying to PythonAnywhere...")
+        plugin_utils.write_output("Deploying to PythonAnywhere...")
         self._clone_and_run_setup_script()
         self._create_webapp()
         self._copy_wsgi_file()
