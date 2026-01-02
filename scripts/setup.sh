@@ -49,10 +49,17 @@ if [ ! -f "$REPO_NAME/.env" ]; then
 DEBUG=TRUE
 ON_PYTHONANYWHERE=TRUE
 SECRET_KEY=$DJANGO_SECRET_KEY
+DATABASE_URL=sqlite:///$HOME/$REPO_NAME/db.sqlite3
 EOF
 	echo ".env file created."
 else
 	echo ".env file already exists. Skipping creation."
 fi
+
+# Run migrations and collectstatic
+echo "Running migrations and collectstatic..."
+cd "$REPO_NAME"
+../venv/bin/python manage.py migrate
+../venv/bin/python manage.py collectstatic --noinput
 
 echo "Setup complete!!!"

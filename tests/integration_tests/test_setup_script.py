@@ -22,11 +22,33 @@ def setup_script_result(tmp_path_factory) -> dict:
     source_repo.mkdir()
     (source_repo / "requirements.txt").write_text("django\n")
 
-    # Create a minimal Django project structure with wsgi.py
+    # Create a minimal Django project structure with wsgi.py and settings.py
     django_project_dir = source_repo / django_project_name
     django_project_dir.mkdir()
+    (django_project_dir / "__init__.py").write_text("")
     (django_project_dir / "wsgi.py").write_text(
         'import os\nos.environ.setdefault("DJANGO_SETTINGS_MODULE", "mysite.settings")\n'
+    )
+    (django_project_dir / "settings.py").write_text(
+        """
+SECRET_KEY = 'test-secret-key'
+DEBUG = True
+INSTALLED_APPS = ['django.contrib.contenttypes', 'django.contrib.staticfiles']
+DATABASES = {'default': {'ENGINE': 'django.db.backends.sqlite3', 'NAME': 'db.sqlite3'}}
+STATIC_URL = '/static/'
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+"""
+    )
+    # Create minimal manage.py
+    (source_repo / "manage.py").write_text(
+        """#!/usr/bin/env python
+import os
+import sys
+if __name__ == "__main__":
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "mysite.settings")
+    from django.core.management import execute_from_command_line
+    execute_from_command_line(sys.argv)
+"""
     )
 
     subprocess.run(["git", "init"], cwd=source_repo, check=True, capture_output=True)
@@ -38,20 +60,26 @@ def setup_script_result(tmp_path_factory) -> dict:
         capture_output=True,
     )
     repo_url = source_repo.as_uri()
-    result = subprocess.run(
-        [
-            "bash",
-            str(script_path),
-            repo_url,
-            dir_name,
-            django_project_name,
-            python_version,
-        ],
-        cwd=tmp_path,
-        check=True,
-        capture_output=True,
-        text=True,
-    )
+    try:
+        result = subprocess.run(
+            [
+                "bash",
+                str(script_path),
+                repo_url,
+                dir_name,
+                django_project_name,
+                python_version,
+            ],
+            cwd=tmp_path,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except subprocess.CalledProcessError as e:
+        print("Setup script failed with the following output:")
+        print(e.stdout)
+        print(e.stderr)
+        raise
 
     return {
         "result": result,
@@ -92,3 +120,11 @@ def test_setup_script_creates_env_file(setup_script_result):
         if line.startswith("SECRET_KEY="):
             secret_key = line.split("=", 1)[1]
             assert len(secret_key) == 50
+
+
+def test_setup_script_runs_migrate(setup_script_result):
+    """setup.sh runs Django migrations."""
+    stdout = setup_script_result["result"].stdout
+    assert "Running migrations and collectstatic..." in stdout
+    # Check that migrations ran (either applied or no migrations to apply)
+    assert "Operations to perform:" in stdout or "No migrations to apply" in stdout

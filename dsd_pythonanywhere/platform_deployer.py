@@ -1,52 +1,11 @@
-"""Manages all PythonAnywhere-specific aspects of the deployment process.
-
-Notes:
--
-
-Add a new file to the user's project, without using a template:
-
-    def _add_dockerignore(self):
-        # Add a dockerignore file, based on user's local project environmnet.
-        path = dsd_config.project_root / ".dockerignore"
-        dockerignore_str = self._build_dockerignore()
-        plugin_utils.add_file(path, dockerignore_str)
-
-Add a new file to the user's project, using a template:
-
-    def _add_dockerfile(self):
-        # Add a minimal dockerfile.
-        template_path = self.templates_path / "dockerfile_example"
-        context = {
-            "django_project_name": dsd_config.local_project_name,
-        }
-        contents = plugin_utils.get_template_string(template_path, context)
-
-        # Write file to project.
-        path = dsd_config.project_root / "Dockerfile"
-        plugin_utils.add_file(path, contents)
-
-Modify user's settings file:
-
-    def _modify_settings(self):
-        # Add platformsh-specific settings.
-        template_path = self.templates_path / "settings.py"
-        context = {
-            "deployed_project_name": self._get_deployed_project_name(),
-        }
-        plugin_utils.modify_settings_file(template_path, context)
-
-Add a set of requirements:
-
-    def _add_requirements(self):
-        # Add requirements for deploying to Fly.io.
-        requirements = ["gunicorn", "psycopg2-binary", "dj-database-url", "whitenoise"]
-        plugin_utils.add_packages(requirements)
-"""
+"""Manages all PythonAnywhere-specific aspects of the deployment process."""
 
 import os
+import webbrowser
 from pathlib import Path
 
 from django_simple_deploy.management.commands.utils import plugin_utils
+from django_simple_deploy.management.commands.utils.command_errors import DSDCommandError
 from django_simple_deploy.management.commands.utils.plugin_utils import dsd_config
 
 from dsd_pythonanywhere.client import PythonAnywhereClient
@@ -73,7 +32,7 @@ class PlatformDeployer:
 
     def __init__(self):
         self.templates_path = Path(__file__).parent / "templates"
-        self.api_user = os.getenv("API_USER")
+        self.api_user = os.getenv("API_USER", "")
         self.client = PythonAnywhereClient(username=self.api_user)
 
     # --- Public methods ---
@@ -83,7 +42,9 @@ class PlatformDeployer:
         plugin_utils.write_output("\nConfiguring project for deployment to PythonAnywhere...")
 
         self._validate_platform()
-        self._prep_automate_all()
+
+        if dsd_config.automate_all:
+            self._prep_automate_all()
 
         # Configure project for deployment to PythonAnywhere
         self._add_requirements()
@@ -96,15 +57,40 @@ class PlatformDeployer:
 
     # --- Helper methods for deploy() ---
 
-    def _validate_platform(self):
+    def _get_deployed_project_name(self) -> str:
+        return self.api_user
+
+    def _validate_platform(self) -> None:
         """Make sure the local environment and project supports deployment to PythonAnywhere.
 
-        Returns:
-            None
         Raises:
             DSDCommandError: If we find any reason deployment won't work.
         """
-        pass
+        # Only validate API credentials when actually deploying
+        if not dsd_config.automate_all:
+            return
+
+        # Check for required environment variables
+        if not os.getenv("API_USER"):
+            raise DSDCommandError(
+                "API_USER environment variable is not set. "
+                "Please set it to your PythonAnywhere username."
+            )
+
+        if not os.getenv("API_TOKEN"):
+            raise DSDCommandError(
+                "API_TOKEN environment variable is not set. "
+                "Please set it to your PythonAnywhere API token."
+            )
+
+        # Test API connection
+        try:
+            self.client.request(method="GET", url=self.client._base_url("cpu"))
+        except Exception as e:
+            raise DSDCommandError(
+                f"Failed to connect to PythonAnywhere API: {e}. "
+                "Please verify your API_USER and API_TOKEN are correct."
+            )
 
     def _get_origin_url(self) -> str:
         """Get the git remote origin URL."""
@@ -124,9 +110,6 @@ class PlatformDeployer:
 
         return https_url
 
-    def _get_deployed_project_name(self):
-        return self.api_user
-
     def _get_repo_name(self) -> str:
         """Get the repository name from the git remote URL.
 
@@ -140,21 +123,28 @@ class PlatformDeployer:
             return dsd_config.project_root.name
 
     def _prep_automate_all(self):
-        """Take any further actions needed if using automate_all."""
-        pass
+        """Configure paths and repo info for automate_all deployment.
 
-    def _clone_and_run_setup_script(self, repo_name: str):
+        Caveats: Git commands will fail in test environments without a remote
+        configured.
+        """
+        self.repo_origin_url = self._get_origin_url()
+        self.repo_name = self._get_repo_name()
+        self.pa_home = Path(f"/home/{self.client.username}")
+        self.pa_project_root_path = self.pa_home / self.repo_name
+
+    def _clone_and_run_setup_script(self):
         # Run the setup script to clone repo and install dependencies
         cmd = [f"curl -fsSL {REMOTE_SETUP_SCRIPT_URL} | bash -s --"]
         origin_url = self._get_origin_url()
         django_project_name = dsd_config.local_project_name
-        cmd.append(f"{origin_url} {repo_name} {django_project_name}")
+        cmd.append(f"{origin_url} {self.repo_name} {django_project_name}")
         cmd = " ".join(cmd)
         plugin_utils.write_output(f"  Cloning and running setup script: {cmd}")
         self.client.run_command(cmd)
         plugin_utils.write_output("Done cloning and running setup script.")
 
-    def _copy_wsgi_file(self, repo_name: str):
+    def _copy_wsgi_file(self):
         """Copy wsgi.py to PythonAnywhere's wsgi location.
 
         This must be done after webapp creation, as creating a webapp
@@ -165,23 +155,19 @@ class PlatformDeployer:
         django_project_name = dsd_config.local_project_name
         domain = f"{self.client.username}.pythonanywhere.com"
         wsgi_dest = f"/var/www/{domain.replace('.', '_')}_wsgi.py"
-        wsgi_src = f"{repo_name}/{django_project_name}/wsgi.py"
+        wsgi_src = f"{self.repo_name}/{django_project_name}/wsgi.py"
 
         cmd = f"cp {wsgi_src} {wsgi_dest}"
         self.client.run_command(cmd)
         plugin_utils.write_output(f"  Copied {wsgi_src} to {wsgi_dest}")
 
-    def _create_webapp(self, repo_name: str):
+    def _create_webapp(self):
         """Create the webapp on PythonAnywhere."""
         plugin_utils.write_output("  Creating webapp on PythonAnywhere...")
-        # Paths on PythonAnywhere (remote home directory)
-        remote_home = Path(f"/home/{self.client.username}")
-        project_path = remote_home / repo_name
-        virtualenv_path = remote_home / "venv"
-        self.client.create_or_update_webapp(
+        self.client.create_webapp_if_not_exists(
             python_version="3.13",
-            virtualenv_path=virtualenv_path,
-            project_path=project_path,
+            virtualenv_path=self.pa_home / "venv",
+            project_path=self.pa_project_root_path,
         )
         plugin_utils.write_output("Webapp created and configured.")
 
@@ -232,6 +218,10 @@ class PlatformDeployer:
         - Commit all changes.
         - Push to remote repo.
         - Run setup script on PythonAnywhere.
+        - Create webapp.
+        - Copy wsgi file.
+        - Configure static files.
+        - Reload webapp.
         """
         # Making this check here lets deploy() be cleaner.
         if not dsd_config.automate_all:
@@ -239,15 +229,15 @@ class PlatformDeployer:
 
         plugin_utils.commit_changes()
         # Push to remote (GitHub, etc).
-        plugin_utils.write_output("  Pushing changes to remote repository...")
+        plugin_utils.write_output("Pushing changes to remote repository...")
         plugin_utils.run_quick_command("git push origin HEAD", check=True)
 
-        # Push project.
-        plugin_utils.write_output("  Deploying to PythonAnywhere...")
-        repo_name = self._get_repo_name()
-        self._clone_and_run_setup_script(repo_name=repo_name)
-        self._create_webapp(repo_name=repo_name)
-        self._copy_wsgi_file(repo_name=repo_name)
+        # Deploy project.
+        plugin_utils.write_output("Deploying to PythonAnywhere...")
+        self._clone_and_run_setup_script()
+        self._create_webapp()
+        self._copy_wsgi_file()
+        self.client.reload_webapp()
         self.deployed_url = f"https://{self._get_deployed_project_name()}.pythonanywhere.com"
 
     def _show_success_message(self):
@@ -257,6 +247,7 @@ class PlatformDeployer:
         """
         if dsd_config.automate_all:
             msg = platform_msgs.success_msg_automate_all(self.deployed_url)
+            webbrowser.open(self.deployed_url)
         else:
             msg = platform_msgs.success_msg(log_output=dsd_config.log_output)
         plugin_utils.write_output(msg)

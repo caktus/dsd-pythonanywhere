@@ -1,15 +1,18 @@
-from pathlib import Path
 import sys
+from pathlib import Path
+
+import pytest
+from django_simple_deploy.management.commands.utils.command_errors import DSDCommandError
 
 from dsd_pythonanywhere.platform_deployer import (
+    PLUGIN_REQUIREMENTS,
     PlatformDeployer,
     dsd_config,
-    PLUGIN_REQUIREMENTS,
 )
 
 
 def test_modify_gitignore(tmp_path: Path, monkeypatch):
-    """Test that _modify_gitignore adds patterns correctly."""
+    """_modify_gitignore adds patterns correctly."""
     deployer = PlatformDeployer()
     monkeypatch.setattr(dsd_config, "git_path", tmp_path)
     monkeypatch.setattr(dsd_config, "stdout", sys.stdout)
@@ -36,7 +39,7 @@ def test_modify_gitignore(tmp_path: Path, monkeypatch):
 
 
 def test_modify_settings(tmp_path: Path, monkeypatch):
-    """Look for one of expected modified lines in settings.py."""
+    """_modify_settings modifies settings.py as expected."""
     settings_path = tmp_path / "settings.py"
     settings_content = "# Existing settings"
     settings_path.write_text(settings_content)
@@ -51,7 +54,7 @@ def test_modify_settings(tmp_path: Path, monkeypatch):
 
 
 def test_add_requirements(tmp_path: Path, monkeypatch):
-    """Test that _add_requirements adds required packages."""
+    """_add_requirements adds required packages."""
     requirements_path = tmp_path / "requirements.txt"
     requirements_content = "Django"
     requirements_path.write_text(requirements_content)
@@ -65,3 +68,66 @@ def test_add_requirements(tmp_path: Path, monkeypatch):
     modified_content = requirements_path.read_text()
     for package in PLUGIN_REQUIREMENTS:
         assert package in modified_content
+
+
+def test_validate_platform_missing_api_user(monkeypatch):
+    """_validate_platform raises error when API_USER is missing."""
+    monkeypatch.delenv("API_USER", raising=False)
+    monkeypatch.setenv("API_TOKEN", "test_token")
+    monkeypatch.setattr(dsd_config, "automate_all", True)
+
+    with pytest.raises(DSDCommandError, match="API_USER environment variable is not set"):
+        deployer = PlatformDeployer()
+        deployer._validate_platform()
+
+
+def test_validate_platform_missing_api_token(monkeypatch):
+    """_validate_platform raises error when API_TOKEN is missing."""
+    monkeypatch.setenv("API_USER", "test_user")
+    monkeypatch.delenv("API_TOKEN", raising=False)
+    monkeypatch.setattr(dsd_config, "automate_all", True)
+
+    deployer = PlatformDeployer()
+    with pytest.raises(DSDCommandError, match="API_TOKEN environment variable is not set"):
+        deployer._validate_platform()
+
+
+def test_validate_platform_api_connection_fails(monkeypatch, mocker):
+    """_validate_platform raises error when API connection fails."""
+    monkeypatch.setenv("API_USER", "test_user")
+    monkeypatch.setenv("API_TOKEN", "test_token")
+    monkeypatch.setattr(dsd_config, "automate_all", True)
+
+    deployer = PlatformDeployer()
+    mock_request = mocker.patch.object(deployer.client, "request")
+    mock_request.side_effect = Exception("Connection failed")
+
+    with pytest.raises(DSDCommandError, match="Failed to connect to PythonAnywhere API"):
+        deployer._validate_platform()
+
+
+def test_validate_platform_success(monkeypatch, mocker):
+    """_validate_platform succeeds with valid credentials."""
+    monkeypatch.setenv("API_USER", "test_user")
+    monkeypatch.setenv("API_TOKEN", "test_token")
+    monkeypatch.setattr(dsd_config, "automate_all", True)
+
+    deployer = PlatformDeployer()
+    mock_request = mocker.patch.object(deployer.client, "request")
+    mock_response = mocker.Mock()
+    mock_response.ok = True
+    mock_request.return_value = mock_response
+
+    # Should not raise any exception
+    deployer._validate_platform()
+
+
+def test_validate_platform_skipped_without_automate_all(monkeypatch):
+    """_validate_platform is skipped when automate_all is False."""
+    monkeypatch.delenv("API_USER", raising=False)
+    monkeypatch.delenv("API_TOKEN", raising=False)
+    monkeypatch.setattr(dsd_config, "automate_all", False)
+
+    deployer = PlatformDeployer()
+    # Should not raise any exception even without credentials
+    deployer._validate_platform()

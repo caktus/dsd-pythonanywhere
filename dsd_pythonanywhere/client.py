@@ -9,13 +9,12 @@ from pathlib import Path
 import requests
 from django_simple_deploy.management.commands.utils import plugin_utils
 from pythonanywhere_core.base import get_api_endpoint
-from pythonanywhere_core.webapp import Webapp
 from requests.adapters import HTTPAdapter
 
 logger = logging.getLogger(__name__)
 
 
-def log_message(message: str, level: int = logging.DEBUG, **kwargs) -> None:
+def log_message(message: str, level: int = logging.INFO, **kwargs) -> None:
     """Helper function to log messages to both logger and plugin_utils output.
 
     Args:
@@ -24,8 +23,8 @@ def log_message(message: str, level: int = logging.DEBUG, **kwargs) -> None:
         **kwargs: Additional keyword arguments for the logger
     """
     logger.log(level, message, **kwargs)
-    if plugin_utils.dsd_config.stdout is not None:
-        plugin_utils.write_output(message)
+    if plugin_utils.dsd_config.stdout is not None and level >= logging.INFO:
+        plugin_utils.write_output(f"  {message}")
 
 
 @dataclass
@@ -44,13 +43,14 @@ class CommandRun:
     # Regex pattern to match empty prompts (command finished): "HH:MM ~ $ " (with optional whitespace)
     EMPTY_PROMPT_PATTERN = re.compile(r"\d{2}:\d{2} ~[^$]*\$\s*$")
     # Regex pattern to match ANSI escape codes for cleaning
-    ANSI_ESCAPE_PATTERN = re.compile(r"\x1b\[[0-9;]*m")
+    # Matches SGR sequences (\x1b[...m), bracketed paste mode (\x1b[?2004h/l), and other CSI sequences
+    ANSI_ESCAPE_PATTERN = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
 
     def __init__(self, raw_output: str):
         self.raw_output = raw_output
         self.lines = raw_output.splitlines()
 
-    def find_most_recent_prompt_line(self, expected_command: str = None) -> int | None:
+    def find_most_recent_prompt_line(self, expected_command: str | None = None) -> int | None:
         """Find the most recent prompt line in console output.
 
         Walks backwards through lines to find the most recent line containing a
@@ -172,17 +172,27 @@ class Console:
         """
         for attempt in range(max_retries):
             log_message(
-                f"Polling attempt {attempt + 1}: waiting for command '{expected_command}' to complete"
+                f"  Polling attempt {attempt + 1}: waiting for command '{expected_command}' to complete"
             )
 
             try:
                 command_run = self.get_latest_output()
-                if command_run and command_run.is_command_finished():
-                    # Command finished, extract output
-                    command_output = command_run.extract_command_output(expected_command)
-                    if command_output is not None:
-                        log_message(f"Command '{expected_command}' completed")
-                        return CommandResult(expected_command, command_output)
+                if command_run:
+                    # First check if our command appears in the output (was echoed back)
+                    command_visible = command_run.find_most_recent_prompt_line(
+                        expected_command=expected_command
+                    )
+                    if command_visible is None:
+                        log_message("Command not yet visible in output, waiting...")
+                        time.sleep(6)
+                        continue
+
+                    # Command is visible, now check if it finished (empty prompt after)
+                    if command_run.is_command_finished():
+                        command_output = command_run.extract_command_output(expected_command)
+                        if command_output is not None:
+                            log_message(f"Command '{expected_command}' completed")
+                            return CommandResult(expected_command, command_output)
 
             except Exception as e:
                 log_message(f"Error polling console output: {e}")
@@ -207,7 +217,7 @@ class Console:
         test_command = "echo hello"
 
         for attempt in range(max_retries):
-            log_message(f"Attempt {attempt}: checking if console is ready")
+            log_message(f"  Attempt {attempt}: checking if console is ready")
 
             # Send the test command input (with newline before to clear any partial input)
             response = self.send_input(f"\n{test_command}\n")
@@ -216,7 +226,7 @@ class Console:
                 if response.status_code == 412:
                     # Console not started, open in browser if we haven't already
                     if not browser_opened:
-                        log_message("Console not started, opening browser...")
+                        log_message("  Console not started, opening browser...")
                         webbrowser.open(self.browser_url)
                         browser_opened = True
                     # Wait for browser opening to trigger startup
@@ -230,7 +240,7 @@ class Console:
             try:
                 result = self.wait_for_command_completion(test_command, max_retries=5)
                 if result.output.strip() == "hello":
-                    log_message("Console is ready")
+                    log_message("  Console is ready")
                     return
             except RuntimeError:
                 # Command didn't complete, continue trying
@@ -266,10 +276,23 @@ class PythonAnywhereClient:
         self.session = requests.Session()
         self.session.headers.update({"Authorization": f"Token {self.token}"})
         self.session.mount("https://", HTTPAdapter(max_retries=3))
-
         # Initialize webapp for this user's domain
         self.domain_name = f"{username}.{self._pythonanywhere_domain}"
-        self.webapp = Webapp(self.domain_name)
+
+        # CRITICAL: Set LOGNAME before importing Webapp, which has class
+        # variables (username, files_url, webapps_url) that are computed at
+        # import time using getpass.getuser(), which reads LOGNAME. If we import
+        # Webapp at the module level, those class variables will be set with the
+        # wrong username. By setting LOGNAME first, then doing a lazy import
+        # here, we ensure Webapp uses the correct username for all API calls.
+        if self.username and self.username != os.getenv("LOGNAME"):
+            os.environ["LOGNAME"] = self.username
+
+        # Lazy import after LOGNAME is set so class variables use correct username
+        from pythonanywhere_core.webapp import Webapp
+
+        self.webapp = Webapp(domain=self.domain_name)
+        self.webapp.username = self.username
 
     @property
     def _pythonanywhere_domain(self) -> str:
@@ -322,7 +345,7 @@ class PythonAnywhereClient:
             log_message(f"API error {status_code=} {error_data=}", extra={"response": e.response})
             if raise_for_status:
                 raise
-        log_message(f"API response: {response.status_code} {response.text}")
+        log_message(f"API response: {response.status_code} {response.text}", level=logging.DEBUG)
         return response
 
     # --- Console management methods ---
@@ -373,10 +396,10 @@ class PythonAnywhereClient:
     def create_webapp(
         self,
         python_version: str,
-        virtualenv_path: str | Path,
-        project_path: str | Path,
+        virtualenv_path: Path,
+        project_path: Path,
         nuke: bool = False,
-    ) -> dict:
+    ) -> None:
         """Create a new web app on PythonAnywhere.
 
         Args:
@@ -384,38 +407,19 @@ class PythonAnywhereClient:
             virtualenv_path: Path to the virtual environment
             project_path: Path to the Django project
             nuke: If True, delete existing webapp before creating
-
-        Returns:
-            The webapp configuration dict
         """
-        log_message(f"Creating webapp for {self.domain_name}...")
         self.webapp.sanity_checks(nuke=nuke)
-        result = self.webapp.create(
+        self.webapp.create(
             python_version=python_version,
-            virtualenv_path=str(virtualenv_path),
-            project_path=str(project_path),
+            virtualenv_path=virtualenv_path,
+            project_path=project_path,
             nuke=nuke,
         )
-        log_message(f"Webapp created: {self.domain_name}")
-        return result
 
-    def reload_webapp(self) -> None:
-        """Reload the web app to apply changes."""
-        log_message(f"Reloading webapp {self.domain_name}...")
-        self.webapp.reload()
-        log_message("Webapp reloaded successfully")
-
-    def create_or_update_webapp(
-        self,
-        python_version: str,
-        virtualenv_path: str | Path,
-        project_path: str | Path,
+    def create_webapp_if_not_exists(
+        self, python_version: str, virtualenv_path: Path, project_path: Path
     ) -> None:
-        """Create or update a webapp.
-
-        This is a convenience method that:
-        1. Creates the webapp if it doesn't exist
-        2. Reloads the webapp
+        """Create a webapp if it doesn't exist.
 
         Args:
             python_version: Python version (e.g., "3.13")
@@ -429,8 +433,14 @@ class PythonAnywhereClient:
                 project_path=project_path,
                 nuke=False,
             )
+            log_message("Configuring static file mappings...")
+            self.webapp.add_default_static_files_mappings(project_path=project_path)
+            log_message("Static file mappings configured")
         else:
             log_message(f"Webapp {self.domain_name} already exists, skipping creation")
 
-        # Always reload to apply changes
-        self.reload_webapp()
+    def reload_webapp(self) -> None:
+        """Reload the web app to apply changes."""
+        log_message(f"Reloading webapp {self.domain_name}...")
+        self.webapp.reload()
+        log_message("Webapp reloaded successfully")

@@ -91,3 +91,15 @@ def test_is_command_finished_returns_false_when_no_prompt():
     """is_command_finished returns False when no prompt found."""
     cmd_run = CommandRun("some output with no prompt")
     assert cmd_run.is_command_finished() is False
+
+
+def test_is_command_finished_handles_bracketed_paste_mode():
+    """is_command_finished correctly strips bracketed paste mode escape sequences."""
+    # Real output from PythonAnywhere with bracketed paste mode (\x1b[?2004h)
+    output_with_bracketed_paste = (
+        "Successfully installed Django-5.1.15\r\n"
+        "Setup complete!!!\r\n"
+        "\x1b[?2004h\x1b[0;0m16:08 ~\x1b[0;33m \x1b[1;32m$ \x1b[0;0m"
+    )
+    cmd_run = CommandRun(output_with_bracketed_paste)
+    assert cmd_run.is_command_finished() is True

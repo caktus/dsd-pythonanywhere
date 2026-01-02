@@ -1,3 +1,5 @@
+import os
+
 import pytest
 import requests
 
@@ -20,6 +22,32 @@ def test_api_client_init(mocker):
     assert client.token == "my_secret_token"
     assert "Authorization" in client.session.headers
     assert client.session.headers["Authorization"] == "Token my_secret_token"
+
+
+def test_logname_set_when_different(mocker):
+    """__init__ sets LOGNAME environment variable when different from username."""
+    mocker.patch.dict("os.environ", {"API_TOKEN": "test_token", "LOGNAME": "original_user"})
+    client = PythonAnywhereClient(username="myuser")
+
+    assert client.username == "myuser"
+    assert os.getenv("LOGNAME") == "myuser"
+
+
+def test_logname_set_before_webapp_import(mocker):
+    """LOGNAME is set before Webapp import so class variables use correct username."""
+    # Mock getpass.getuser to return the current LOGNAME value
+    # This simulates what pythonanywhere_core.webapp.Webapp does at import time
+    mocker.patch.dict("os.environ", {"API_TOKEN": "test_token", "LOGNAME": "original_user"})
+    mocker.patch(
+        "pythonanywhere_core.webapp.getpass.getuser",
+        side_effect=lambda: os.getenv("LOGNAME", "original_user"),
+    )
+
+    # Create client with different username - this should update LOGNAME before import
+    client = PythonAnywhereClient(username="deployment_user")
+    assert os.getenv("LOGNAME") == "deployment_user"
+    assert client.webapp.username == "deployment_user"
+    assert client.webapp.domain == "deployment_user.pythonanywhere.com"
 
 
 def test_hostname_default(api_client, mocker):
@@ -78,3 +106,36 @@ def test_request_handles_errors(api_client, mocker):
 
     with pytest.raises(requests.exceptions.HTTPError):
         api_client.request(method="GET", url="https://example.com/api/test")
+
+
+def test_create_webapp_if_not_exists_creates_new(api_client, mocker):
+    """create_webapp_if_not_exists creates webapp and configures static files when it doesn't exist."""
+    mocker.patch.object(api_client, "webapp_exists", return_value=False)
+    mock_create = mocker.patch.object(api_client, "create_webapp")
+    mock_add_mappings = mocker.patch.object(api_client.webapp, "add_default_static_files_mappings")
+    project_path = "/home/testuser/project"
+
+    api_client.create_webapp_if_not_exists(
+        python_version="3.13",
+        virtualenv_path="/home/testuser/venv",
+        project_path=project_path,
+    )
+
+    mock_create.assert_called_once()
+    mock_add_mappings.assert_called_once()
+
+
+def test_create_webapp_if_not_exists_skips_existing(api_client, mocker):
+    """create_webapp_if_not_exists skips creation when webapp exists."""
+    mocker.patch.object(api_client, "webapp_exists", return_value=True)
+    mock_create = mocker.patch.object(api_client, "create_webapp")
+    mock_add_mappings = mocker.patch.object(api_client.webapp, "add_default_static_files_mappings")
+
+    api_client.create_webapp_if_not_exists(
+        python_version="3.13",
+        virtualenv_path="/home/testuser/venv",
+        project_path="/home/testuser/project",
+    )
+
+    mock_create.assert_not_called()
+    mock_add_mappings.assert_not_called()
