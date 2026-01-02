@@ -1,49 +1,7 @@
-"""Manages all PythonAnywhere-specific aspects of the deployment process.
-
-Notes:
--
-
-Add a new file to the user's project, without using a template:
-
-    def _add_dockerignore(self):
-        # Add a dockerignore file, based on user's local project environmnet.
-        path = dsd_config.project_root / ".dockerignore"
-        dockerignore_str = self._build_dockerignore()
-        plugin_utils.add_file(path, dockerignore_str)
-
-Add a new file to the user's project, using a template:
-
-    def _add_dockerfile(self):
-        # Add a minimal dockerfile.
-        template_path = self.templates_path / "dockerfile_example"
-        context = {
-            "django_project_name": dsd_config.local_project_name,
-        }
-        contents = plugin_utils.get_template_string(template_path, context)
-
-        # Write file to project.
-        path = dsd_config.project_root / "Dockerfile"
-        plugin_utils.add_file(path, contents)
-
-Modify user's settings file:
-
-    def _modify_settings(self):
-        # Add platformsh-specific settings.
-        template_path = self.templates_path / "settings.py"
-        context = {
-            "deployed_project_name": self._get_deployed_project_name(),
-        }
-        plugin_utils.modify_settings_file(template_path, context)
-
-Add a set of requirements:
-
-    def _add_requirements(self):
-        # Add requirements for deploying to Fly.io.
-        requirements = ["gunicorn", "psycopg2-binary", "dj-database-url", "whitenoise"]
-        plugin_utils.add_packages(requirements)
-"""
+"""Manages all PythonAnywhere-specific aspects of the deployment process."""
 
 import os
+import webbrowser
 from pathlib import Path
 
 from django_simple_deploy.management.commands.utils import plugin_utils
@@ -289,6 +247,7 @@ class PlatformDeployer:
         """
         if dsd_config.automate_all:
             msg = platform_msgs.success_msg_automate_all(self.deployed_url)
+            webbrowser.open(self.deployed_url)
         else:
             msg = platform_msgs.success_msg(log_output=dsd_config.log_output)
         plugin_utils.write_output(msg)

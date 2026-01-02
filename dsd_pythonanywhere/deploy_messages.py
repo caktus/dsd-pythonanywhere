@@ -88,7 +88,14 @@ def success_msg_automate_all(deployed_url):
         - You can also visit your project at {deployed_url}
 
         If you make further changes and want to push them to PythonAnywhere,
-        commit your changes and then run `...`.
+        you need to:
+        - Commit your changes
+        - Push to your remote repository
+        - On PythonAnywhere, open a bash console and:
+          - Pull the latest changes
+          - Run migrations if necessary
+          - Collect static files if necessary
+          - Reload your webapp
     """
     )
     return msg
