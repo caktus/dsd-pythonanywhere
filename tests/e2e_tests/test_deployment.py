@@ -3,8 +3,8 @@ import time
 import pytest
 
 from tests.e2e_tests.utils import it_helper_functions as it_utils
-from . import utils as platform_utils
 
+from . import utils as platform_utils
 
 # --- Test functions ---
 

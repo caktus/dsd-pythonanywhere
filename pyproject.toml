@@ -1,12 +1,14 @@
 [build-system]
-requires = ["setuptools"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project]
 name = "dsd-pythonanywhere"
-version = "0.1.0"
+dynamic = ["version"]
 description = "A plugin for django-simple-deploy, supporting deployments to PythonAnywhere."
 readme = "README.md"
+requires-python = ">=3.9"
+license = { file = "LICENSE" }
 
 authors = [
     {name = "Caktus Consulting Group", email = "solutions@caktusgroup.com" },
@@ -14,57 +16,70 @@ authors = [
 
 classifiers = [
     "Development Status :: 4 - Beta",
+    "Framework :: Django",
     "Framework :: Django :: 4.2",
     "Framework :: Django :: 5.0",
     "Framework :: Django :: 5.1",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: BSD License",
     "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Build Tools",
+    "Topic :: System :: Software Distribution",
 ]
 
-keywords = ["django", "deployment"]
-
-requires-python = ">=3.9"
+keywords = ["django", "deployment", "pythonanywhere", "simple-deploy"]
 
 dependencies = [
     "django>=4.2",
-    "pluggy>=1.5.0",
-    "toml>=0.10.2",
-    "requests>=2.32.2",
     "django-simple-deploy>=0.9.0",
     "pythonanywhere>=0.15.5",
     "pythonanywhere-core>=0.2.4",
+    "requests>=2.32.2",
+    "pluggy>=1.5.0",
+    "tomli>=2.0.1; python_version < '3.11'",
 ]
 
-[project.optional-dependencies]
-dev = [
-    "build>=1.2.1",
-    "pytest>=8.3.0",
-    "pytest-mock>=3.15.1",
-    "twine>=5.1.1",
-]
+[project.urls]
+Homepage = "https://github.com/caktus/dsd-pythonanywhere"
+Source = "https://github.com/caktus/dsd-pythonanywhere"
+Tracker = "https://github.com/caktus/dsd-pythonanywhere/issues"
 
-# [project.urls]
-# "Documentation" = "<documentation URL>"
-# "GitHub" = "<GH repo URL>"
-# "Changelog" = "<changelog URL"
+# --- HATCHLING SPECIFIC CONFIGURATION ---
 
-[tool.setuptools]
-packages = [
+# 1. DYNAMIC VERSIONING
+# This tells Hatchling to look inside your init file for "__version__ = '...'"
+[tool.hatch.version]
+path = "dsd_pythonanywhere/__init__.py"
+
+# 2. BUILD TARGETS
+# This replaces MANIFEST.in.
+# Hatchling includes everything in git by default, but we can be explicit.
+[tool.hatch.build.targets.sdist]
+include = [
     "dsd_pythonanywhere",
-    "dsd_pythonanywhere.templates",
+    "LICENSE",
+    "README.md",
 ]
-include-package-data = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["dsd_pythonanywhere"]
+
+# --- TOOL CONFIGURATION ---
 
 [tool.ruff]
 line-length = 100
-exclude = ["dsd_pythonanywhere/templates/settings.py"]
+exclude = [
+    "dsd_pythonanywhere/templates/settings.py",
+    "build",
+    "dist",
+]
 
 [dependency-groups]
 dev = [
@@ -76,4 +91,5 @@ dev = [
 ]
 
 [tool.pytest.ini_options]
-testpaths = [ "tests/unit_tests" ]
+testpaths = ["tests/unit_tests"]
+addopts = "--verbose"
