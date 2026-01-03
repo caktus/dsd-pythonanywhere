@@ -7,6 +7,7 @@ Notes:
 import django_simple_deploy
 
 from dsd_pythonanywhere.platform_deployer import PlatformDeployer
+
 from .plugin_config import PluginConfig
 
 
