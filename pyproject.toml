@@ -7,7 +7,7 @@ name = "dsd-pythonanywhere"
 dynamic = ["version"]
 description = "A plugin for django-simple-deploy, supporting deployments to PythonAnywhere."
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.9"
 license = { file = "LICENSE" }
 
 authors = [
