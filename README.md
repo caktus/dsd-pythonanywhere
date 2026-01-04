@@ -54,7 +54,7 @@ you can deploy your project with the following steps:
 export API_USER=[your_pythonanywhere_username]
 export API_TOKEN=[your_pythonanywhere_api_token]
 # Install dsd-pythonanywhere (which also installs django-simple-deploy)
-pip install git+https://github.com/caktus/dsd-pythonanywhere.git@main
+pip install dsd-pythonanywhere
 ```
 
 2. Add `django-simple-deploy` to your `INSTALLED_APPS` in `settings.py`:

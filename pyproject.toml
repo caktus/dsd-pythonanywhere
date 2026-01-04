@@ -8,7 +8,8 @@ version = "0.1.0"
 description = "A plugin for django-simple-deploy, supporting deployments to PythonAnywhere."
 readme = "README.md"
 requires-python = ">=3.9"
-license = { file = "LICENSE" }
+license = "BSD-3-Clause"
+license-files = ["LICEN[CS]E.*"]
 
 authors = [
     {name = "Caktus Consulting Group", email = "solutions@caktusgroup.com" },
