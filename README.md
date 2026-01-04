@@ -22,6 +22,7 @@ deployments yet.
 - [Approach](#approach)
 - [Plugin Development](#plugin-development)
   - [Automated Tests](#automated-tests)
+  - [Releasing](#releasing)
 
 ## Motivation
 
@@ -53,7 +54,7 @@ you can deploy your project with the following steps:
 export API_USER=[your_pythonanywhere_username]
 export API_TOKEN=[your_pythonanywhere_api_token]
 # Install dsd-pythonanywhere (which also installs django-simple-deploy)
-pip install git+https://github.com/caktus/dsd-pythonanywhere.git@main
+pip install dsd-pythonanywhere
 ```
 
 2. Add `django-simple-deploy` to your `INSTALLED_APPS` in `settings.py`:
@@ -272,4 +273,29 @@ uv add --editable "../dsd-pythonanywhere[dev]"
 uv run pytest
 # To skip platform_agnostic_tests for faster feedback during plugin development:
 uv run pytest --ignore=tests/integration_tests/platform_agnostic_tests
+```
+
+### Releasing
+
+1. Bump the version in `pyproject.toml`:
+   ```sh
+   uv version --bump patch  # or --bump minor/major
+   ```
+
+2. Add release notes to `CHANGELOG.md`
+
+3. Create a new release on GitHub:
+   - Tag the version (e.g., `v0.2.1`)
+   - Add the same release notes
+   - Publish the release
+
+   When the release is published, CI automatically builds and publishes the package to PyPI.
+
+<!-- omit in toc -->
+#### Test Release
+
+If you're testing a release, you can use `test.pypi.org` with a command like:
+
+```sh
+op run --env-file ../.testpypi -- uv publish --publish-url https://test.pypi.org/legacy/ 
 ```
