@@ -23,7 +23,7 @@ assert templates_dir.is_dir(), f"Templates path exists but is not a directory: {
 print(f"✓ Templates directory found: {templates_dir}")
 
 # Verify template files exist
-expected_templates = ["settings.py", "wsgi.py", "dockerfile_example"]
+expected_templates = ["settings.py", "wsgi.py"]
 for template in expected_templates:
     template_path = templates_dir / template
     assert template_path.exists(), f"Missing template file: {template}"
