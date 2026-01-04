@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "dsd-pythonanywhere"
-dynamic = ["version"]
+version = "0.1.0"
 description = "A plugin for django-simple-deploy, supporting deployments to PythonAnywhere."
 readme = "README.md"
 requires-python = ">=3.9"
@@ -55,12 +55,7 @@ Tracker = "https://github.com/caktus/dsd-pythonanywhere/issues"
 
 # --- HATCHLING SPECIFIC CONFIGURATION ---
 
-# 1. DYNAMIC VERSIONING
-# This tells Hatchling to look inside your init file for "__version__ = '...'"
-[tool.hatch.version]
-path = "dsd_pythonanywhere/__init__.py"
-
-# 2. BUILD TARGETS
+# BUILD TARGETS
 # This replaces MANIFEST.in.
 # Hatchling includes everything in git by default, but we can be explicit.
 [tool.hatch.build.targets.sdist]
