@@ -102,6 +102,50 @@ def test_wait_for_command_completion_timeout(console, mocker):
         console.wait_for_command_completion("echo test", max_retries=3)
 
 
+def test_wait_for_command_completion_scrolled_off_buffer(console, mocker):
+    """Command completing after its prompt line scrolls out of the output buffer.
+
+    Long-running commands produce enough output to push the original echo line
+    out of the console buffer.  The first poll sees the command; subsequent
+    polls no longer see it but do see an empty prompt (finished).
+    """
+    # First poll: command visible, not yet finished
+    run1 = mocker.MagicMock()
+    run1.find_most_recent_prompt_line.return_value = 0  # command still in buffer
+    run1.is_command_finished.return_value = False
+
+    # Second poll: command scrolled off buffer (returns None), but prompt is empty (finished)
+    run2 = mocker.MagicMock()
+    run2.find_most_recent_prompt_line.return_value = None  # scrolled off
+    run2.is_command_finished.return_value = True
+    run2.extract_command_output.return_value = None  # can't find it anymore
+
+    mocker.patch.object(console, "get_latest_output", side_effect=[run1, run2])
+    mocker.patch("dsd_pythonanywhere.client.time.sleep")
+
+    result = console.wait_for_command_completion("long-command", max_retries=5)
+    assert result.command == "long-command"
+    assert result.output == ""
+
+
+def test_wait_for_command_completion_debug_polling(console, mocker):
+    """DEBUG_POLLING env var causes raw output to be logged."""
+    mock_command_run = mocker.MagicMock()
+    mock_command_run.raw_output = "raw console output"
+    mock_command_run.is_command_finished.return_value = True
+    mock_command_run.extract_command_output.return_value = "output"
+    mocker.patch.object(console, "get_latest_output", return_value=mock_command_run)
+    mocker.patch("dsd_pythonanywhere.client.time.sleep")
+    mock_log = mocker.patch("dsd_pythonanywhere.client.log_message")
+    mocker.patch.dict("os.environ", {"DEBUG_POLLING": "1"})
+
+    console.wait_for_command_completion("echo test", max_retries=1)
+
+    debug_calls = [c for c in mock_log.call_args_list if "DEBUG_POLLING" in str(c)]
+    assert debug_calls, "Expected DEBUG_POLLING log message"
+    assert "raw console output" in str(debug_calls[0])
+
+
 def test_wait_for_command_completion_handles_exceptions(console, mocker):
     """wait_for_command_completion continues on exceptions."""
     # First call raises exception, second call succeeds

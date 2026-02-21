@@ -28,3 +28,15 @@ dsd-pythonanywhere is a plugin for deploying Django projects to PythonAnywhere, 
 ### Code Quality
 
 - Run ruff pre-commit hooks: `uv run pre-commit run --all-files`.
+- Typing: Always use modern Python 3.12+ typing:
+  - Use built-in generics (e.g., `list[str]`, `dict[int, str]`) instead of `typing` imports.
+  - Use the `|` operator for unions (e.g., `str | None`) instead of `Optional` or `Union`.
+  - Use `collections.abc` (e.g., `Sequence`, `Iterable`) for flexible input arguments.
+- Path Handling: Always use `pathlib.Path` for file system operations. Avoid `os.path`.
+  - Type hint paths as `pathlib.Path` for internal logic and `pathlib.Path | str` for public API entry points.
+  - Prefer path operators (e.g., `path / "subdir"`) and methods like `.read_text()` or `.write_text()`.
+
+### Agent Workflow
+
+- Always maintain a detailed todo/checklist list.
+- Always run full test suite and ruff pre-commit hooks as the last tasks in your todo list.

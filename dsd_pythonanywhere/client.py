@@ -170,6 +170,12 @@ class Console:
 
         Returns: CommandResult with command and output when command is finished
         """
+        # Track whether the command has ever appeared in the output buffer.
+        # Long-running commands can produce enough output to push the original
+        # prompt line out of the buffer, so we can't rely on it still being
+        # visible when the command finally finishes.
+        command_seen = False
+
         for attempt in range(max_retries):
             log_message(
                 f"  Polling attempt {attempt + 1}: waiting for command '{expected_command}' to complete"
@@ -178,21 +184,28 @@ class Console:
             try:
                 command_run = self.get_latest_output()
                 if command_run:
-                    # First check if our command appears in the output (was echoed back)
-                    command_visible = command_run.find_most_recent_prompt_line(
-                        expected_command=expected_command
-                    )
-                    if command_visible is None:
+                    if os.getenv("DEBUG_POLLING"):
+                        log_message(f"DEBUG_POLLING raw output:\n{command_run.raw_output}")
+
+                    # Check if our command appears in the output (was echoed back)
+                    if (
+                        command_run.find_most_recent_prompt_line(expected_command=expected_command)
+                        is not None
+                    ):
+                        command_seen = True
+
+                    if not command_seen:
                         log_message("Command not yet visible in output, waiting...")
                         time.sleep(6)
                         continue
 
-                    # Command is visible, now check if it finished (empty prompt after)
+                    # Command has been seen; check if it finished (empty prompt at end)
                     if command_run.is_command_finished():
-                        command_output = command_run.extract_command_output(expected_command)
-                        if command_output is not None:
-                            log_message(f"Command '{expected_command}' completed")
-                            return CommandResult(expected_command, command_output)
+                        # extract_command_output returns None when the command line
+                        # scrolled out of the buffer; fall back to empty string
+                        command_output = command_run.extract_command_output(expected_command) or ""
+                        log_message(f"Command '{expected_command}' completed")
+                        return CommandResult(expected_command, command_output)
 
             except Exception as e:
                 log_message(f"Error polling console output: {e}")
