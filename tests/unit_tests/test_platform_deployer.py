@@ -44,6 +44,7 @@ def test_modify_settings(tmp_path: Path, monkeypatch):
     settings_content = "# Existing settings"
     settings_path.write_text(settings_content)
 
+    monkeypatch.setenv("API_USER", "testuser")
     deployer = PlatformDeployer()
     monkeypatch.setattr(dsd_config, "settings_path", settings_path)
     monkeypatch.setattr(dsd_config, "stdout", sys.stdout)
@@ -51,6 +52,7 @@ def test_modify_settings(tmp_path: Path, monkeypatch):
     deployer._modify_settings()
     modified_content = settings_path.read_text()
     assert 'if os.getenv("ON_PYTHONANYWHERE"):' in modified_content
+    assert 'ALLOWED_HOSTS = ["testuser.pythonanywhere.com"]' in modified_content
 
 
 def test_add_requirements(tmp_path: Path, monkeypatch):
