@@ -17,7 +17,6 @@ REMOTE_SETUP_SCRIPT_URL = os.getenv(
     "https://raw.githubusercontent.com/caktus/dsd-pythonanywhere/refs/heads/main/scripts/setup.sh",
 )
 PLUGIN_REQUIREMENTS = (
-    "dsd-pythonanywhere @ git+https://github.com/caktus/dsd-pythonanywhere@main",
     "python-dotenv",
     "dj-database-url",
 )

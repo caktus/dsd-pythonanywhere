@@ -69,6 +69,12 @@ def test_add_requirements(tmp_path: Path, monkeypatch):
     for package in PLUGIN_REQUIREMENTS:
         assert package in modified_content
 
+    # Only needed to run `manage.py deploy` locally; the deployed app never
+    # imports either package, and dsd-pythonanywhere's own git+https
+    # dependency routinely fails to install on PythonAnywhere's free tier.
+    assert "dsd-pythonanywhere" not in modified_content
+    assert "django-simple-deploy" not in modified_content
+
 
 def test_validate_platform_missing_api_user(monkeypatch):
     """_validate_platform raises error when API_USER is missing."""
