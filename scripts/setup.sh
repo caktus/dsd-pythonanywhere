@@ -18,7 +18,8 @@ echo "Cloning repository..."
 if [ ! -d "$REPO_NAME" ]; then
 	git clone "$GIT_REPO_URL" "$REPO_NAME"
 else
-	echo "Directory $REPO_NAME already exists. Skipping clone."
+	echo "Directory $REPO_NAME already exists. Pulling latest changes..."
+	git -C "$REPO_NAME" pull
 fi
 
 # Create and activate a Python virtual environment, if it doesn't already exist
