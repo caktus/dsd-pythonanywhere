@@ -11,6 +11,14 @@ from dsd_pythonanywhere.platform_deployer import (
 )
 
 
+@pytest.fixture
+def settings_path(tmp_path: Path):
+    settings_path = tmp_path / "settings.py"
+    settings_content = "# Existing settings"
+    settings_path.write_text(settings_content)
+    yield settings_path
+
+
 def test_modify_gitignore(tmp_path: Path, monkeypatch):
     """_modify_gitignore adds patterns correctly."""
     deployer = PlatformDeployer()
@@ -40,12 +48,8 @@ def test_modify_gitignore(tmp_path: Path, monkeypatch):
     assert contents == original_contents
 
 
-def test_modify_settings(tmp_path: Path, monkeypatch):
+def test_modify_settings(settings_path, monkeypatch):
     """_modify_settings modifies settings.py as expected."""
-    settings_path = tmp_path / "settings.py"
-    settings_content = "# Existing settings"
-    settings_path.write_text(settings_content)
-
     monkeypatch.setenv("API_USER", "testuser")
     deployer = PlatformDeployer()
     monkeypatch.setattr(dsd_config, "settings_path", settings_path)
@@ -175,11 +179,12 @@ def test_validate_platform_api_connection_fails(monkeypatch, mocker):
         deployer._validate_platform()
 
 
-def test_validate_platform_success(monkeypatch, mocker):
+def test_validate_platform_success(settings_path, monkeypatch, mocker):
     """_validate_platform succeeds with valid credentials."""
     monkeypatch.setenv("API_USER", "test_user")
     monkeypatch.setenv("API_TOKEN", "test_token")
     monkeypatch.setattr(dsd_config, "automate_all", True)
+    monkeypatch.setattr(dsd_config, "settings_path", settings_path)
 
     deployer = PlatformDeployer()
     mock_request = mocker.patch.object(deployer.client, "request")
@@ -200,3 +205,24 @@ def test_validate_platform_skipped_without_automate_all(monkeypatch):
     deployer = PlatformDeployer()
     # Should not raise any exception even without credentials
     deployer._validate_platform()
+
+
+def test_validate_platform_removes_existing_settings(settings_path, monkeypatch, mocker):
+    """_validate_platform replaces settings block, preventing stacking copies."""
+    monkeypatch.setenv("API_USER", "test_user")
+    monkeypatch.setenv("API_TOKEN", "test_token")
+    monkeypatch.setattr(dsd_config, "automate_all", True)
+    monkeypatch.setattr(dsd_config, "settings_path", settings_path)
+    monkeypatch.setattr(dsd_config, "stdout", sys.stdout)
+    monkeypatch.setattr(dsd_config, "unit_testing", True)
+
+    deployer = PlatformDeployer()
+    mock_request = mocker.patch.object(deployer.client, "request")
+    mock_response = mocker.Mock()
+    mock_response.ok = True
+    mock_request.return_value = mock_response
+
+    settings_path.write_text("# PythonAnywhere settings.")
+    deployer._validate_platform()
+    modified_content = settings_path.read_text()
+    assert modified_content.count("# PythonAnywhere settings.") == 0
