@@ -70,6 +70,40 @@ def test_add_requirements(tmp_path: Path, monkeypatch):
         assert package in modified_content
 
 
+def test_copy_wsgi_file(monkeypatch, mocker):
+    """_copy_wsgi_file copies the project's wsgi.py to PythonAnywhere."""
+    deployer = PlatformDeployer()
+    monkeypatch.setattr(dsd_config, "local_project_name", "mysite")
+    monkeypatch.setattr(dsd_config, "stdout", sys.stdout)
+    monkeypatch.setattr(deployer, "repo_name", "myrepo", raising=False)
+    monkeypatch.setattr(deployer, "pa_home", Path("/home/TestUser"), raising=False)
+    monkeypatch.setattr(
+        deployer, "pa_project_root_path", deployer.pa_home / deployer.repo_name, raising=False
+    )
+    monkeypatch.setattr(deployer.client, "username", "TestUser")
+
+    mock_run_command = mocker.patch.object(deployer.client, "run_command")
+
+    # Successful, verified copy: an absolute source path (consoles can be
+    # reused across API calls, so a relative path is vulnerable to a `cd`
+    # left over from an earlier step) and a lowercased destination filename
+    # (PythonAnywhere only looks for the lowercased filename, regardless of
+    # the account's actual username casing).
+    mock_run_command.side_effect = ["", "COPY_VERIFIED"]
+    deployer._copy_wsgi_file()
+    cp_cmd = mock_run_command.call_args_list[0].args[0]
+    assert "/home/TestUser/myrepo/mysite/wsgi.py" in cp_cmd
+    assert cp_cmd.split()[1].startswith("/")
+    assert "/var/www/testuser_pythonanywhere_com_wsgi.py" in cp_cmd
+
+    # cp "succeeds" (no error text returned), but cmp shows a content
+    # mismatch (e.g. a preceding command left the console's cwd somewhere
+    # unexpected). Must raise rather than proceed to reload_webapp().
+    mock_run_command.side_effect = ["", "COPY_FAILED"]
+    with pytest.raises(DSDCommandError, match="Failed to verify"):
+        deployer._copy_wsgi_file()
+
+
 def test_validate_platform_missing_api_user(monkeypatch):
     """_validate_platform raises error when API_USER is missing."""
     monkeypatch.delenv("API_USER", raising=False)

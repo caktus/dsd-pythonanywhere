@@ -263,21 +263,51 @@ class Console:
 
         raise RuntimeError("Console did not become ready after waiting.")
 
+    # Marker appended to every command so we can recover its exit status.
+    # Console output otherwise gives no reliable signal of success/failure.
+    EXIT_STATUS_MARKER = "DSD_EXIT_STATUS"
+    EXIT_STATUS_PATTERN = re.compile(rf"{EXIT_STATUS_MARKER}:(-?\d+)\s*$")
+
     def run_command(self, command: str) -> str:
         """Run a command and return its output.
+
+        Appends a marker that echoes the command's exit status, since the
+        console API otherwise gives no way to tell whether a command actually
+        succeeded.
 
         Args:
             command: The command string to run in the console
 
         Returns:
-            The command output as a string, or empty string if command failed
-        """
-        response = self.send_input(f"{command}\n")
-        if not response.ok:
-            return ""
+            The command output as a string, with the exit-status marker
+            stripped out.
 
-        result = self.wait_for_command_completion(command)
-        return result.output
+        Raises:
+            RuntimeError: if the command could not be sent, or exited with a
+                non-zero status.
+        """
+        full_command = f'{command}; echo "{self.EXIT_STATUS_MARKER}:$?"'
+        response = self.send_input(f"{full_command}\n")
+        if not response.ok:
+            raise RuntimeError(f"Failed to send command to console: {command}")
+
+        result = self.wait_for_command_completion(full_command)
+        output = result.output
+
+        match = self.EXIT_STATUS_PATTERN.search(output)
+        if match is None:
+            raise RuntimeError(
+                f"Could not determine exit status for command: {command}\nOutput:\n{output}"
+            )
+
+        output = self.EXIT_STATUS_PATTERN.sub("", output).strip()
+        exit_status = int(match.group(1))
+        if exit_status != 0:
+            raise RuntimeError(
+                f"Command exited with status {exit_status}: {command}\nOutput:\n{output}"
+            )
+
+        return output
 
 
 class PythonAnywhereClient:
