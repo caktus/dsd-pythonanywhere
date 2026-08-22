@@ -193,7 +193,7 @@ class PlatformDeployer:
         }
         contents = plugin_utils.get_template_string(template_path, context)
         path = dsd_config.project_root / dsd_config.local_project_name / "wsgi.py"
-        plugin_utils.add_file(path, contents)
+        plugin_utils.modify_file(path, contents)
 
     def _modify_gitignore(self) -> None:
         """Ensure .gitignore ignores deployment files."""

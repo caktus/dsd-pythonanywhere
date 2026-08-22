@@ -53,6 +53,31 @@ def test_modify_settings(tmp_path: Path, monkeypatch):
     assert 'if os.getenv("ON_PYTHONANYWHERE"):' in modified_content
 
 
+def test_modify_wsgi_redeploy_does_not_prompt(tmp_path: Path, monkeypatch, mocker):
+    """_modify_wsgi overwrites an existing wsgi.py without a confirmation prompt."""
+    project_name = "mysite"
+    project_dir = tmp_path / project_name
+    project_dir.mkdir()
+    wsgi_path = project_dir / "wsgi.py"
+    wsgi_path.write_text("# original wsgi.py")
+
+    deployer = PlatformDeployer()
+    monkeypatch.setattr(dsd_config, "project_root", tmp_path)
+    monkeypatch.setattr(dsd_config, "local_project_name", project_name)
+    monkeypatch.setattr(dsd_config, "stdout", sys.stdout)
+    mocker.patch.object(deployer, "_get_repo_name", return_value="myrepo")
+
+    # wsgi.py already exists here, as it would on a redeploy. If this used
+    # add_file(), it would block on an interactive confirmation prompt.
+    deployer._modify_wsgi()
+    modified_content = wsgi_path.read_text()
+    assert "myrepo" in modified_content
+    assert project_name in modified_content
+
+    deployer._modify_wsgi()
+    assert wsgi_path.read_text() == modified_content
+
+
 def test_add_requirements(tmp_path: Path, monkeypatch):
     """_add_requirements adds required packages."""
     requirements_path = tmp_path / "requirements.txt"
