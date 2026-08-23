@@ -32,10 +32,12 @@ def test_modify_gitignore(tmp_path: Path, monkeypatch):
     assert ".env" in contents
 
     # Test when .gitignore already contains .env
-    gitignore_path.write_text(".env\n*.pyc\n__pycache__/")
+    original_contents = ".env\n*.pyc\n__pycache__/"
+    gitignore_path.write_text(original_contents)
     deployer._modify_gitignore()
     contents = gitignore_path.read_text()
     assert contents.count(".env") == 1
+    assert contents == original_contents
 
 
 def test_modify_settings(tmp_path: Path, monkeypatch):

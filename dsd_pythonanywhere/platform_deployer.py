@@ -207,10 +207,14 @@ class PlatformDeployer:
         else:
             # Append patterns to .gitignore if not already there.
             contents = gitignore_path.read_text()
-            patterns_to_add = "".join([pattern for pattern in patterns if pattern not in contents])
-            contents += f"\n{patterns_to_add}"
-            gitignore_path.write_text(contents)
-            plugin_utils.write_output(f"Added {patterns_to_add} to .gitignore")
+            ignored_patterns = set(contents.split("\n"))
+            patterns_to_add = "\n".join(
+                pattern for pattern in patterns if pattern not in ignored_patterns
+            )
+            if patterns_to_add:
+                contents += f"\n{patterns_to_add}"
+                gitignore_path.write_text(contents)
+                plugin_utils.write_output(f"Added {patterns_to_add} to .gitignore")
 
     def _conclude_automate_all(self):
         """Finish automating the push to PythonAnywhere.
