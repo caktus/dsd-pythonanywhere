@@ -207,7 +207,10 @@ class PlatformDeployer:
         else:
             # Append patterns to .gitignore if not already there.
             contents = gitignore_path.read_text()
-            patterns_to_add = "\n".join(pattern for pattern in patterns if pattern not in contents)
+            ignored_patterns = set(contents.split("\n"))
+            patterns_to_add = "\n".join(
+                pattern for pattern in patterns if pattern not in ignored_patterns
+            )
             if patterns_to_add:
                 contents += f"\n{patterns_to_add}"
                 gitignore_path.write_text(contents)
