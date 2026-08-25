@@ -18,6 +18,7 @@ jobs:
     env:
       API_USER: ${{ secrets.PA_API_USER }}
       API_TOKEN: ${{ secrets.PA_API_TOKEN }}
+      PA_PASSWORD: ${{ secrets.PA_PASSWORD }}
       # Resolved by dsd_pythonanywhere.client._get_console_opener(); the plugin's
       # tests/ dir is added to PYTHONPATH below so this dotted path resolves both
       # in this pytest process and in the `manage.py deploy` child process.
@@ -56,9 +57,6 @@ jobs:
           uv pip install -e "../dsd-pythonanywhere[dev]"
           uv run playwright install chromium --with-deps
 
-      - name: Write PA auth state
-        run: echo '${{ secrets.PA_AUTH_STATE }}' > pa_auth_state.json
-
       - name: Reset demo project to baseline
         working-directory: demo-project
         run: |
@@ -76,7 +74,6 @@ jobs:
         working-directory: django-simple-deploy
         env:
           PYTHONPATH: ${{ github.workspace }}/dsd-pythonanywhere/tests
-          PA_AUTH_STATE_PATH: ${{ github.workspace }}/pa_auth_state.json
         run: uv run pytest tests/e2e_tests --plugin dsd_pythonanywhere --automate-all --skip-confirmations -s
 
       - name: Teardown (always runs, even on failure)
