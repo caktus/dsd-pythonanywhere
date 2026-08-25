@@ -251,7 +251,9 @@ class PlatformDeployer:
         """
         if dsd_config.automate_all:
             msg = platform_msgs.success_msg_automate_all(self.deployed_url)
-            webbrowser.open(self.deployed_url)
+            # Don't launch a real browser during automated e2e test runs.
+            if not dsd_config.e2e_testing:
+                webbrowser.open(self.deployed_url)
         else:
             msg = platform_msgs.success_msg(log_output=dsd_config.log_output)
         plugin_utils.write_output(msg)

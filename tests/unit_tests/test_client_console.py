@@ -161,3 +161,19 @@ def test_wait_for_command_completion_handles_exceptions(console, mocker):
 
     result = console.wait_for_command_completion("echo test", max_retries=5)
     assert result.output == "output"
+
+
+def test_wait_for_ready_uses_console_opener(console, mock_api_client, mocker):
+    """wait_for_ready opens the console via the resolved opener, not webbrowser directly."""
+    not_started = mocker.MagicMock(ok=False, status_code=412)
+    ready = mocker.MagicMock(ok=True)
+    mocker.patch.object(console, "send_input", side_effect=[not_started, ready])
+    mock_command_run = mocker.MagicMock()
+    mock_command_run.output = "hello"
+    mocker.patch.object(console, "wait_for_command_completion", return_value=mock_command_run)
+    mocker.patch("dsd_pythonanywhere.client.time.sleep")
+    mock_opener = mocker.patch("dsd_pythonanywhere.client._get_console_opener")
+
+    console.wait_for_ready()
+
+    mock_opener.return_value.assert_called_once_with(console.browser_url)
