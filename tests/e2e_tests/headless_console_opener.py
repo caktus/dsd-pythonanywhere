@@ -26,7 +26,9 @@ def open_console(url: str) -> None:
         page = context.new_page()
         page.goto(url)
         if "/login/" in page.url:
-            raise RuntimeError(f"PA_AUTH_STATE session appears expired (redirected to login for {url})")
+            raise RuntimeError(
+                f"PA_AUTH_STATE session appears expired (redirected to login for {url})"
+            )
         page.wait_for_load_state("networkidle")
         page.wait_for_timeout(5000)
         browser.close()
