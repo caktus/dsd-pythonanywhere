@@ -8,7 +8,6 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  DEMO_REPO: caktus/dsd-pythonanywhere-testproj
   DEMO_REPO_NAME: dsd-pythonanywhere-testproj
 
 jobs:
@@ -19,6 +18,9 @@ jobs:
       API_USER: ${{ secrets.PA_API_USER }}
       API_TOKEN: ${{ secrets.PA_API_TOKEN }}
       PA_PASSWORD: ${{ secrets.PA_PASSWORD }}
+      # Full clone URL with embedded push credentials, e.g.
+      # https://x-access-token:<token>@github.com/caktus/dsd-pythonanywhere-testproj.git
+      DEMO_REPO_URL: ${{ secrets.DEMO_REPO_URL }}
       # Resolved by dsd_pythonanywhere.client._get_console_opener(); the plugin's
       # tests/ dir is added to PYTHONPATH below so this dotted path resolves both
       # in this pytest process and in the `manage.py deploy` child process.
@@ -35,14 +37,6 @@ jobs:
           repository: django-simple-deploy/django-simple-deploy
           path: django-simple-deploy
 
-      - name: Checkout demo project
-        uses: actions/checkout@v5
-        with:
-          repository: ${{ env.DEMO_REPO }}
-          path: demo-project
-          token: ${{ secrets.DEMO_REPO_TOKEN }}
-          fetch-depth: 0
-
       - name: Install uv and set the Python version
         uses: astral-sh/setup-uv@v7
         with:
@@ -56,13 +50,6 @@ jobs:
           uv pip install -e .
           uv pip install -e "../dsd-pythonanywhere[dev]"
           uv run playwright install chromium --with-deps
-
-      - name: Reset demo project to baseline
-        working-directory: demo-project
-        run: |
-          git fetch origin baseline
-          git checkout -B main origin/baseline
-          git push --force origin main
 
       - name: Pre-test cleanup (webapp + filesystem)
         working-directory: django-simple-deploy

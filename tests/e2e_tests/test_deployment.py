@@ -1,3 +1,4 @@
+import os
 import time
 
 import pytest
@@ -16,6 +17,20 @@ from . import utils as platform_utils
 def test_dummy(tmp_project, request):
     """Helpful to have an empty test to run when testing setup steps."""
     pass
+
+
+def _configure_demo_repo_remote(tmp_project):
+    """Point tmp_project at the real GitHub repo PythonAnywhere will clone from.
+
+    The plugin pushes to `origin` and has PA `git clone` that same URL, so a
+    real, internet-reachable remote is required -- tmp_project only has a
+    local git history (see manage_sample_project.py), and it's brand new on
+    every run, so the remote's `main` branch is deleted first to allow the
+    plugin's plain (non-force) `git push origin HEAD` to land as a fresh branch.
+    """
+    demo_repo_url = os.environ["DEMO_REPO_URL"]
+    it_utils.make_sp_call(f"git push {demo_repo_url} --delete main")
+    it_utils.make_sp_call(f"git -C {tmp_project} remote add origin {demo_repo_url}")
 
 
 # Skip this test and enable test_dummy() to speed up testing of setup steps.
@@ -37,6 +52,8 @@ def test_deployment(tmp_project, cli_options, request):
         raise NotImplementedError(
             "dsd-pythonanywhere e2e tests only support the --automate-all workflow."
         )
+
+    _configure_demo_repo_remote(tmp_project)
 
     # Run simple_deploy against the test project.
     it_utils.run_simple_deploy(python_cmd, automate_all=cli_options.automate_all)
