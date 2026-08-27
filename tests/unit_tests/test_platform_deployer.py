@@ -32,10 +32,12 @@ def test_modify_gitignore(tmp_path: Path, monkeypatch):
     assert ".env" in contents
 
     # Test when .gitignore already contains .env
-    gitignore_path.write_text(".env\n*.pyc\n__pycache__/")
+    original_contents = ".env\n*.pyc\n__pycache__/"
+    gitignore_path.write_text(original_contents)
     deployer._modify_gitignore()
     contents = gitignore_path.read_text()
     assert contents.count(".env") == 1
+    assert contents == original_contents
 
 
 def test_modify_settings(tmp_path: Path, monkeypatch):
@@ -44,6 +46,7 @@ def test_modify_settings(tmp_path: Path, monkeypatch):
     settings_content = "# Existing settings"
     settings_path.write_text(settings_content)
 
+    monkeypatch.setenv("API_USER", "testuser")
     deployer = PlatformDeployer()
     monkeypatch.setattr(dsd_config, "settings_path", settings_path)
     monkeypatch.setattr(dsd_config, "stdout", sys.stdout)
@@ -51,6 +54,7 @@ def test_modify_settings(tmp_path: Path, monkeypatch):
     deployer._modify_settings()
     modified_content = settings_path.read_text()
     assert 'if os.getenv("ON_PYTHONANYWHERE"):' in modified_content
+    assert 'ALLOWED_HOSTS = ["testuser.pythonanywhere.com"]' in modified_content
 
 
 def test_add_requirements(tmp_path: Path, monkeypatch):
@@ -68,6 +72,12 @@ def test_add_requirements(tmp_path: Path, monkeypatch):
     modified_content = requirements_path.read_text()
     for package in PLUGIN_REQUIREMENTS:
         assert package in modified_content
+
+    # Only needed to run `manage.py deploy` locally; the deployed app never
+    # imports either package, and dsd-pythonanywhere's own git+https
+    # dependency routinely fails to install on PythonAnywhere's free tier.
+    assert "dsd-pythonanywhere" not in modified_content
+    assert "django-simple-deploy" not in modified_content
 
 
 def test_copy_wsgi_file(monkeypatch, mocker):

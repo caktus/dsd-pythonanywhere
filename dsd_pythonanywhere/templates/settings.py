@@ -17,9 +17,9 @@ if os.getenv("ON_PYTHONANYWHERE"):
     SECRET_KEY = os.getenv("SECRET_KEY")
 
     try:
-        ALLOWED_HOSTS.append("*")
+        ALLOWED_HOSTS.append("{{ deployed_project_name }}.pythonanywhere.com")
     except NameError:
-        ALLOWED_HOSTS = ["*"]
+        ALLOWED_HOSTS = ["{{ deployed_project_name }}.pythonanywhere.com"]
 
     DATABASES = {
         "default": dj_database_url.config(),
