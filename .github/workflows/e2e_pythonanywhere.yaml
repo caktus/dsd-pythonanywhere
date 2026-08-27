@@ -24,7 +24,7 @@ jobs:
       # Resolved by dsd_pythonanywhere.client._get_console_opener(); the plugin's
       # tests/ dir is added to PYTHONPATH below so this dotted path resolves both
       # in this pytest process and in the `manage.py deploy` child process.
-      DSD_PYTHONANYWHERE_CONSOLE_OPENER: "e2e_tests.headless_console_opener:open_console"
+      DSD_PYTHONANYWHERE_CONSOLE_OPENER: "e2e_tests.pa_admin:open_console"
     steps:
       - name: Checkout dsd-pythonanywhere
         uses: actions/checkout@v5
@@ -55,7 +55,7 @@ jobs:
         working-directory: django-simple-deploy
         env:
           PYTHONPATH: ${{ github.workspace }}/dsd-pythonanywhere/tests
-        run: uv run python ../dsd-pythonanywhere/scripts/reset_pa_account.py
+        run: uv run python -m e2e_tests.pa_admin
 
       - name: Run e2e test
         working-directory: django-simple-deploy
@@ -68,4 +68,4 @@ jobs:
         working-directory: django-simple-deploy
         env:
           PYTHONPATH: ${{ github.workspace }}/dsd-pythonanywhere/tests
-        run: uv run python ../dsd-pythonanywhere/scripts/reset_pa_account.py
+        run: uv run python -m e2e_tests.pa_admin

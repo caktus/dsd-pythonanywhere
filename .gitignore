@@ -2,6 +2,7 @@
 
 *_env/
 .envrc
+.env.e2e
 
 *.pyc
 __pycache__/
