@@ -1,3 +1,4 @@
+import importlib
 import logging
 import os
 import re
@@ -12,6 +13,21 @@ from pythonanywhere_core.base import get_api_endpoint
 from requests.adapters import HTTPAdapter
 
 logger = logging.getLogger(__name__)
+
+
+def _get_console_opener():
+    """Resolve the callable used to open a console URL.
+
+    Defaults to webbrowser.open. Override with DSD_PYTHONANYWHERE_CONSOLE_OPENER,
+    a "module.path:function" string, for headless environments like e2e CI.
+    """
+    dotted_path = os.getenv("DSD_PYTHONANYWHERE_CONSOLE_OPENER")
+    if not dotted_path:
+        return webbrowser.open
+
+    module_path, func_name = dotted_path.split(":", 1)
+    module = importlib.import_module(module_path)
+    return getattr(module, func_name)
 
 
 def log_message(message: str, level: int = logging.INFO, **kwargs) -> None:
@@ -240,7 +256,7 @@ class Console:
                     # Console not started, open in browser if we haven't already
                     if not browser_opened:
                         log_message("  Console not started, opening browser...")
-                        webbrowser.open(self.browser_url)
+                        _get_console_opener()(self.browser_url)
                         browser_opened = True
                     # Wait for browser opening to trigger startup
                     time.sleep(5)

@@ -1,3 +1,4 @@
+import os
 import time
 
 import pytest
@@ -18,6 +19,20 @@ def test_dummy(tmp_project, request):
     pass
 
 
+def _configure_demo_repo_remote(tmp_project):
+    """Point tmp_project at the real GitHub repo PythonAnywhere will clone from.
+
+    The plugin pushes to `origin` and has PA `git clone` that same URL, so a
+    real, internet-reachable remote is required -- tmp_project only has a
+    local git history (see manage_sample_project.py), and it's brand new on
+    every run, so the remote's `main` branch is deleted first to allow the
+    plugin's plain (non-force) `git push origin HEAD` to land as a fresh branch.
+    """
+    demo_repo_url = os.environ["DEMO_REPO_URL"]
+    it_utils.make_sp_call(f"git push {demo_repo_url} --delete main")
+    it_utils.make_sp_call(f"git -C {tmp_project} remote add origin {demo_repo_url}")
+
+
 # Skip this test and enable test_dummy() to speed up testing of setup steps.
 # @pytest.mark.skip
 def test_deployment(tmp_project, cli_options, request):
@@ -31,11 +46,14 @@ def test_deployment(tmp_project, cli_options, request):
 
     python_cmd = it_utils.get_python_exe(tmp_project)
 
-    # Note: If not using automate_all, take steps here that the end user would take.
-    # Create a new project on the remote host, if not testing --automate-all.
-    # if not cli_options.automate_all:
-    #     app_name = platform_utils.create_project()
-    #     request.config.cache.set("app_name", app_name)
+    # PythonAnywhere's webapp is tied to the account, so only automate_all is
+    # supported here; a non-automated flow doesn't have a project to create first.
+    if not cli_options.automate_all:
+        raise NotImplementedError(
+            "dsd-pythonanywhere e2e tests only support the --automate-all workflow."
+        )
+
+    _configure_demo_repo_remote(tmp_project)
 
     # Run simple_deploy against the test project.
     it_utils.run_simple_deploy(python_cmd, automate_all=cli_options.automate_all)
@@ -44,37 +62,18 @@ def test_deployment(tmp_project, cli_options, request):
     if cli_options.pkg_manager == "pipenv":
         it_utils.make_sp_call(f"{python_cmd} -m pipenv lock")
 
-    # Note: This is an example of how you can stash information about the deployment,
-    #   which can be used in the teardown phase. You do need to set project_url,
-    #   in order to run functionality tests against the deployed project.
-    #
-    # Get the deployed project's URL, and ID so we can destroy it later.
-    #   This also commits configuration changes and pushes the project
-    #   when testing the configuration-only workflow.
-    # When testing automate_all, cache app_name for teardown work.
-    # if cli_options.automate_all:
-    #     project_url, app_name = platform_utils.get_project_url_name()
-    #     request.config.cache.set("app_name", app_name)
-    # else:
-    #     it_utils.commit_configuration_changes()
-    #     project_url = platform_utils.deploy_project(app_name)
-
-    # Note: ***** Remove this line, or your test will always report as passed! *****
-    remote_functionality_passed = True
+    # Get the deployed project's URL and app name, and cache app_name for teardown.
+    project_url, app_name = platform_utils.get_project_url_name()
+    request.config.cache.set("app_name", app_name)
 
     # Remote functionality test often fails if run too quickly after deployment.
     print("\nPausing 10s to let deployment finish...")
     time.sleep(10)
 
-    # Note: Uncomment this section once your deployment is successful, and
-    #   project_url is set in the above section.
-    #
     # Test functionality of both deployed app, and local project.
     #   We want to make sure the deployment works, but also make sure we haven't
     #   affected functionality of the local project using the development server.
-    # remote_functionality_passed = it_utils.check_deployed_app_functionality(
-    #     python_cmd, project_url
-    # )
+    remote_functionality_passed = it_utils.check_deployed_app_functionality(python_cmd, project_url)
     local_functionality_passed = it_utils.check_local_app_functionality(python_cmd)
     log_check_passed = platform_utils.check_log(tmp_project)
 

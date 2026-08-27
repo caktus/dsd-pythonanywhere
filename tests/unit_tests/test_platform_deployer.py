@@ -141,3 +141,31 @@ def test_validate_platform_skipped_without_automate_all(monkeypatch):
     deployer = PlatformDeployer()
     # Should not raise any exception even without credentials
     deployer._validate_platform()
+
+
+def test_show_success_message_opens_browser_outside_e2e(monkeypatch, mocker):
+    """_show_success_message opens the deployed URL when not running as an e2e test."""
+    monkeypatch.setattr(dsd_config, "automate_all", True)
+    monkeypatch.setattr(dsd_config, "e2e_testing", False)
+    monkeypatch.setattr(dsd_config, "stdout", sys.stdout)
+    mock_open = mocker.patch("dsd_pythonanywhere.platform_deployer.webbrowser.open")
+
+    deployer = PlatformDeployer()
+    deployer.deployed_url = "https://testuser.pythonanywhere.com"
+    deployer._show_success_message()
+
+    mock_open.assert_called_once_with(deployer.deployed_url)
+
+
+def test_show_success_message_skips_browser_during_e2e(monkeypatch, mocker):
+    """_show_success_message does not open a real browser during e2e test runs."""
+    monkeypatch.setattr(dsd_config, "automate_all", True)
+    monkeypatch.setattr(dsd_config, "e2e_testing", True)
+    monkeypatch.setattr(dsd_config, "stdout", sys.stdout)
+    mock_open = mocker.patch("dsd_pythonanywhere.platform_deployer.webbrowser.open")
+
+    deployer = PlatformDeployer()
+    deployer.deployed_url = "https://testuser.pythonanywhere.com"
+    deployer._show_success_message()
+
+    mock_open.assert_not_called()

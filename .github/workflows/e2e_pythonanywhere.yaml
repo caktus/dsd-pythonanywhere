@@ -1,0 +1,71 @@
+name: e2e-pythonanywhere
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: pa-e2e-deploy
+  cancel-in-progress: false
+
+env:
+  DEMO_REPO_NAME: dsd-pythonanywhere-testproj
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    environment: pa-integration
+    env:
+      API_USER: ${{ secrets.PA_API_USER }}
+      API_TOKEN: ${{ secrets.PA_API_TOKEN }}
+      PA_PASSWORD: ${{ secrets.PA_PASSWORD }}
+      # Full clone URL with embedded push credentials, e.g.
+      # https://x-access-token:<token>@github.com/caktus/dsd-pythonanywhere-testproj.git
+      DEMO_REPO_URL: ${{ secrets.DEMO_REPO_URL }}
+      # Resolved by dsd_pythonanywhere.client._get_console_opener(); the plugin's
+      # tests/ dir is added to PYTHONPATH below so this dotted path resolves both
+      # in this pytest process and in the `manage.py deploy` child process.
+      DSD_PYTHONANYWHERE_CONSOLE_OPENER: "e2e_tests.headless_console_opener:open_console"
+    steps:
+      - name: Checkout dsd-pythonanywhere
+        uses: actions/checkout@v5
+        with:
+          path: dsd-pythonanywhere
+
+      - name: Checkout django-simple-deploy
+        uses: actions/checkout@v5
+        with:
+          repository: django-simple-deploy/django-simple-deploy
+          path: django-simple-deploy
+
+      - name: Install uv and set the Python version
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.14"
+          enable-cache: true
+
+      - name: Install dependencies
+        run: |
+          cd django-simple-deploy
+          uv venv
+          uv pip install -e .
+          uv pip install -e "../dsd-pythonanywhere[dev]"
+          uv run playwright install chromium --with-deps
+
+      - name: Pre-test cleanup (webapp + filesystem)
+        working-directory: django-simple-deploy
+        env:
+          PYTHONPATH: ${{ github.workspace }}/dsd-pythonanywhere/tests
+        run: uv run python ../dsd-pythonanywhere/scripts/reset_pa_account.py
+
+      - name: Run e2e test
+        working-directory: django-simple-deploy
+        env:
+          PYTHONPATH: ${{ github.workspace }}/dsd-pythonanywhere/tests
+        run: uv run pytest tests/e2e_tests --plugin dsd_pythonanywhere --automate-all --skip-confirmations -s
+
+      - name: Teardown (always runs, even on failure)
+        if: always()
+        working-directory: django-simple-deploy
+        env:
+          PYTHONPATH: ${{ github.workspace }}/dsd-pythonanywhere/tests
+        run: uv run python ../dsd-pythonanywhere/scripts/reset_pa_account.py
