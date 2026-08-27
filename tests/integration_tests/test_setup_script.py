@@ -7,18 +7,8 @@ from pathlib import Path
 import pytest
 
 
-@pytest.fixture(scope="module")
-def setup_script_result(tmp_path_factory) -> dict:
-    """Run setup.sh once and return the result along with paths for testing."""
-    tmp_path = tmp_path_factory.mktemp("setup_script")
-    script_path = Path(__file__).parent.parent.parent / "scripts" / "setup.sh"
-    dir_name = "test_project"
-    django_project_name = "mysite"
-    # Use the current Python version available on CI for testing
-    python_version = f"python{sys.version_info.major}.{sys.version_info.minor}"
-
-    # Create a minimal git repository with a requirements.txt file and Django project
-    source_repo = tmp_path / "source_repo"
+def _create_source_repo(source_repo: Path, django_project_name: str) -> None:
+    """Create a minimal git repository with a requirements.txt file and Django project."""
     source_repo.mkdir()
     (source_repo / "requirements.txt").write_text("django\n")
 
@@ -59,6 +49,20 @@ if __name__ == "__main__":
         check=True,
         capture_output=True,
     )
+
+
+@pytest.fixture(scope="module")
+def setup_script_result(tmp_path_factory) -> dict:
+    """Run setup.sh once and return the result along with paths for testing."""
+    tmp_path = tmp_path_factory.mktemp("setup_script")
+    script_path = Path(__file__).parent.parent.parent / "scripts" / "setup.sh"
+    dir_name = "test_project"
+    django_project_name = "mysite"
+    # Use the current Python version available on CI for testing
+    python_version = f"python{sys.version_info.major}.{sys.version_info.minor}"
+
+    source_repo = tmp_path / "source_repo"
+    _create_source_repo(source_repo, django_project_name)
     repo_url = source_repo.as_uri()
     try:
         result = subprocess.run(
@@ -128,3 +132,29 @@ def test_setup_script_runs_migrate(setup_script_result):
     assert "Running migrations and collectstatic..." in stdout
     # Check that migrations ran (either applied or no migrations to apply)
     assert "Operations to perform:" in stdout or "No migrations to apply" in stdout
+
+
+def test_setup_script_redeploy_pulls_latest_changes(tmp_path):
+    """Running setup.sh again pulls new commits instead of skipping the existing clone."""
+    script_path = Path(__file__).parent.parent.parent / "scripts" / "setup.sh"
+    dir_name = "test_project"
+    django_project_name = "mysite"
+    python_version = f"python{sys.version_info.major}.{sys.version_info.minor}"
+
+    source_repo = tmp_path / "source_repo"
+    _create_source_repo(source_repo, django_project_name)
+    repo_url = source_repo.as_uri()
+
+    args = ["bash", str(script_path), repo_url, dir_name, django_project_name, python_version]
+    subprocess.run(args, cwd=tmp_path, check=True, capture_output=True, text=True)
+
+    # A new commit lands on the remote after the first deploy.
+    (source_repo / "REDEPLOY_MARKER.txt").write_text("second deploy")
+    subprocess.run(["git", "add", "."], cwd=source_repo, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "Second commit"], cwd=source_repo, check=True, capture_output=True
+    )
+
+    subprocess.run(args, cwd=tmp_path, check=True, capture_output=True, text=True)
+
+    assert (tmp_path / dir_name / "REDEPLOY_MARKER.txt").exists()
