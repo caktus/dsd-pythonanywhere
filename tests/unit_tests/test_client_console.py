@@ -146,6 +146,35 @@ def test_wait_for_command_completion_debug_polling(console, mocker):
     assert "raw console output" in str(debug_calls[0])
 
 
+def test_run_command_returns_output_on_success(console, mocker):
+    """run_command strips the exit-status marker and returns the real output."""
+    mocker.patch.object(console, "send_input", return_value=mocker.Mock(ok=True))
+    mock_result = CommandResult(command="ls", output="foo\nbar\nDSD_EXIT_STATUS:0")
+    mocker.patch.object(console, "wait_for_command_completion", return_value=mock_result)
+
+    output = console.run_command("ls")
+
+    assert output == "foo\nbar"
+
+
+def test_run_command_raises_when_send_fails(console, mocker):
+    """run_command raises rather than silently returning an empty string."""
+    mocker.patch.object(console, "send_input", return_value=mocker.Mock(ok=False))
+
+    with pytest.raises(RuntimeError, match="Failed to send command"):
+        console.run_command("ls")
+
+
+def test_run_command_raises_on_nonzero_exit_status(console, mocker):
+    """run_command raises when the command's own exit status is non-zero."""
+    mocker.patch.object(console, "send_input", return_value=mocker.Mock(ok=True))
+    mock_result = CommandResult(command="false", output="some error text\nDSD_EXIT_STATUS:1")
+    mocker.patch.object(console, "wait_for_command_completion", return_value=mock_result)
+
+    with pytest.raises(RuntimeError, match="exited with status 1"):
+        console.run_command("false")
+
+
 def test_wait_for_command_completion_handles_exceptions(console, mocker):
     """wait_for_command_completion continues on exceptions."""
     # First call raises exception, second call succeeds

@@ -17,7 +17,6 @@ REMOTE_SETUP_SCRIPT_URL = os.getenv(
     "https://raw.githubusercontent.com/caktus/dsd-pythonanywhere/refs/heads/main/scripts/setup.sh",
 )
 PLUGIN_REQUIREMENTS = (
-    "dsd-pythonanywhere @ git+https://github.com/caktus/dsd-pythonanywhere@main",
     "python-dotenv",
     "dj-database-url",
 )
@@ -153,12 +152,30 @@ class PlatformDeployer:
         plugin_utils.write_output("  Copying wsgi.py to PythonAnywhere...")
 
         django_project_name = dsd_config.local_project_name
-        domain = f"{self.client.username}.pythonanywhere.com"
+        # PythonAnywhere only looks for the lowercased filename here, regardless
+        # of the casing of the account's actual username.
+        domain = f"{self.client.username.lower()}.pythonanywhere.com"
         wsgi_dest = f"/var/www/{domain.replace('.', '_')}_wsgi.py"
-        wsgi_src = f"{self.repo_name}/{django_project_name}/wsgi.py"
+        # Use an absolute source path: consoles can be reused across API calls
+        # (get_active_console() may pick up any existing bash console), so a
+        # `cd` left over from an earlier step can't cause this to copy from
+        # the wrong place.
+        wsgi_src = str(self.pa_project_root_path / django_project_name / "wsgi.py")
 
-        cmd = f"cp {wsgi_src} {wsgi_dest}"
-        self.client.run_command(cmd)
+        self.client.run_command(f"cp {wsgi_src} {wsgi_dest}")
+
+        # cp can "succeed" while copying the wrong file (e.g. an unexpected
+        # cwd), so confirm the destination actually matches the source before
+        # declaring the deploy successful.
+        verify_cmd = f"cmp -s {wsgi_src} {wsgi_dest} && echo COPY_VERIFIED || echo COPY_FAILED"
+        verify_output = self.client.run_command(verify_cmd)
+        if "COPY_VERIFIED" not in verify_output:
+            raise DSDCommandError(
+                f"Failed to verify that {wsgi_src} was copied to {wsgi_dest} on "
+                "PythonAnywhere. The deployed app may still be serving PythonAnywhere's "
+                "placeholder wsgi app."
+            )
+
         plugin_utils.write_output(f"  Copied {wsgi_src} to {wsgi_dest}")
 
     def _create_webapp(self):
@@ -207,10 +224,14 @@ class PlatformDeployer:
         else:
             # Append patterns to .gitignore if not already there.
             contents = gitignore_path.read_text()
-            patterns_to_add = "".join([pattern for pattern in patterns if pattern not in contents])
-            contents += f"\n{patterns_to_add}"
-            gitignore_path.write_text(contents)
-            plugin_utils.write_output(f"Added {patterns_to_add} to .gitignore")
+            ignored_patterns = set(contents.split("\n"))
+            patterns_to_add = "\n".join(
+                pattern for pattern in patterns if pattern not in ignored_patterns
+            )
+            if patterns_to_add:
+                contents += f"\n{patterns_to_add}"
+                gitignore_path.write_text(contents)
+                plugin_utils.write_output(f"Added {patterns_to_add} to .gitignore")
 
     def _conclude_automate_all(self):
         """Finish automating the push to PythonAnywhere.
