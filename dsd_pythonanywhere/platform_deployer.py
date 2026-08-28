@@ -91,6 +91,17 @@ class PlatformDeployer:
                 "Please verify your API_USER and API_TOKEN are correct."
             )
 
+        self._check_pythonanywhere_settings()
+
+    def _check_pythonanywhere_settings(self) -> None:
+        """Check to see if a PythonAnywhere settings block already exists."""
+        plugin_utils.check_settings(
+            "PythonAnywhere",
+            "# PythonAnywhere settings.",
+            platform_msgs.settings_found_pythonanywhere,
+            platform_msgs.settings_cant_overwrite_pythonanywhere,
+        )
+
     def _get_origin_url(self) -> str:
         """Get the git remote origin URL."""
         origin_url = (

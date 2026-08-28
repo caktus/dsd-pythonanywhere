@@ -30,6 +30,16 @@ You can log in from  the command line:
   $ ...
 """
 
+settings_found_pythonanywhere = """
+A PythonAnywhere-specific settings block was already found in settings.py.
+That block will be replaced with a fresh copy.
+"""
+
+settings_cant_overwrite_pythonanywhere = """
+Can't overwrite the existing PythonAnywhere-specific settings block. Please
+remove it from settings.py manually and run the deploy command again.
+"""
+
 
 # --- Dynamic strings ---
 # These need to be generated in functions, to display information that's determined as
