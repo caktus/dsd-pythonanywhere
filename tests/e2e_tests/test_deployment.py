@@ -25,12 +25,17 @@ def _configure_demo_repo_remote(tmp_project):
     The plugin pushes to `origin` and has PA `git clone` that same URL, so a
     real, internet-reachable remote is required -- tmp_project only has a
     local git history (see manage_sample_project.py), and it's brand new on
-    every run, so the remote's `main` branch is deleted first to allow the
-    plugin's plain (non-force) `git push origin HEAD` to land as a fresh branch.
+    every run, so it's force-pushed onto the remote's `main` branch first.
+    This makes the plugin's later plain (non-force) `git push origin HEAD` a
+    fast-forward, without needing branch-deletion permission on the remote.
     """
     demo_repo_url = os.environ["DEMO_REPO_URL"]
-    it_utils.make_sp_call(f"git push {demo_repo_url} --delete main")
     it_utils.make_sp_call(f"git -C {tmp_project} remote add origin {demo_repo_url}")
+    result = it_utils.make_sp_call(
+        f"git -C {tmp_project} push --force origin HEAD:main", capture_output=True
+    )
+    if result.returncode != 0:
+        raise RuntimeError(f"Failed to reset demo repo's main branch: {result.stderr.decode()}")
 
 
 # Skip this test and enable test_dummy() to speed up testing of setup steps.

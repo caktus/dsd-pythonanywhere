@@ -24,6 +24,8 @@ set -e
 #
 # Assumes django-simple-deploy is checked out as a sibling directory; override
 # with DSD_ROOT=/path/to/django-simple-deploy.
+#
+# Set CLEAN_VENV=1 to force-recreate $DSD_ROOT/.venv instead of reusing it.
 
 PLUGIN_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DSD_ROOT="${DSD_ROOT:-$PLUGIN_ROOT/../django-simple-deploy}"
@@ -55,9 +57,15 @@ export PYTHONPATH="$PLUGIN_ROOT/tests"
 cd "$DSD_ROOT"
 
 echo "Installing dependencies..."
-uv venv
-uv pip install -e .
-uv pip install -e "$PLUGIN_ROOT[dev]"
+if [ "${CLEAN_VENV:-}" = "1" ]; then
+	uv venv --clear
+elif [ ! -d ".venv" ]; then
+	uv venv
+fi
+uv pip install -e ".[dev]"
+uv pip install -e "$PLUGIN_ROOT"
+# playwright is a dev dependency-group, not an extra, so install it directly.
+uv pip install playwright
 uv run playwright install chromium --with-deps
 
 echo "Pre-test cleanup (webapp + filesystem)..."
