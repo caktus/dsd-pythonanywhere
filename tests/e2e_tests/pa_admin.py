@@ -5,6 +5,7 @@ this module resolves as the top-level package "e2e_tests.pa_admin" -- see
 .github/workflows/e2e_pythonanywhere.yaml and scripts/run_e2e_local.sh.
 """
 
+import logging
 import os
 
 from playwright.sync_api import sync_playwright
@@ -65,4 +66,8 @@ def reset_account() -> None:
 
 
 if __name__ == "__main__":
+    # dsd_pythonanywhere.client.log_message() only prints via plugin_utils, which
+    # isn't configured outside a real `manage.py deploy` run; wire up basic
+    # logging here so console-polling progress is visible.
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
     reset_account()
