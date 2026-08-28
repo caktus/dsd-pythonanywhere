@@ -9,6 +9,11 @@ set -e
 #   cp .env.e2e.example .env.e2e   # first time only; fill in real values
 #   ./scripts/run_e2e_local.sh
 #
+# .env.e2e values can also be 1Password references (e.g. "op://vault/item/field");
+# in that case, run via `op run` so they're resolved into the environment before
+# this script's own (non-resolving) `source` step runs:
+#   op run --env-file=.env.e2e -- ./scripts/run_e2e_local.sh
+#
 # Required env vars (loaded from .env.e2e if present, in the plugin root):
 #   API_USER        PythonAnywhere username
 #   API_TOKEN       PythonAnywhere API token
@@ -23,7 +28,9 @@ set -e
 PLUGIN_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DSD_ROOT="${DSD_ROOT:-$PLUGIN_ROOT/../django-simple-deploy}"
 
-if [ -f "$PLUGIN_ROOT/.env.e2e" ]; then
+# Skip if already provided by `op run` (which resolves op:// refs itself);
+# a plain `source` here would otherwise clobber them with the literal op:// string.
+if [ -z "${API_USER:-}" ] && [ -f "$PLUGIN_ROOT/.env.e2e" ]; then
 	echo "Loading env vars from .env.e2e..."
 	set -a
 	source "$PLUGIN_ROOT/.env.e2e"
