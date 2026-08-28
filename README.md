@@ -182,6 +182,7 @@ cd dsd-dev-project_[random_string]/
 source .venv/bin/activate
 # Install dsd-pythonanywhere plugin in editable mode
 pip install -e "../dsd-pythonanywhere/[dev]"
+pre-commit install
 ```
 
 Your development environment is now configured to use your local copy of
